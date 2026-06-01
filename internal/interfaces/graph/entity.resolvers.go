@@ -8,13 +8,16 @@ package graph
 import (
 	"context"
 
+	"github.com/example/payment-federation/internal/interfaces/graph/dataloader"
 	"github.com/example/payment-federation/internal/interfaces/graph/generated"
 	"github.com/example/payment-federation/internal/interfaces/graph/model"
 )
 
-// FindOrderByID is the resolver for the findOrderByID field.
+// FindOrderByID is the resolver for the findOrderByID field. Via DataLoader: o
+// gateway de federação costuma pedir VÁRIAS entities numa requisição — o loader
+// agrupa essas buscas num só GetOrdersByIDs.
 func (r *entityResolver) FindOrderByID(ctx context.Context, id string) (*model.Order, error) {
-	return r.loadOrder(ctx, id)
+	return dataloader.For(ctx).OrderByID.Load(id)
 }
 
 // FindPaymentByID is the resolver for the findPaymentByID field.
@@ -22,9 +25,10 @@ func (r *entityResolver) FindPaymentByID(ctx context.Context, id string) (*model
 	return r.load(ctx, id)
 }
 
-// FindUserByID is the resolver for the findUserByID field.
+// FindUserByID is the resolver for the findUserByID field. Via DataLoader (batch
+// das entities User pedidas pela federação).
 func (r *entityResolver) FindUserByID(ctx context.Context, id string) (*model.User, error) {
-	return r.loadUser(ctx, id)
+	return dataloader.For(ctx).UserByID.Load(id)
 }
 
 // Entity returns generated.EntityResolver implementation.

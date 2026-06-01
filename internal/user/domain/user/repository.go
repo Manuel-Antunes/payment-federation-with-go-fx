@@ -13,6 +13,9 @@ type Repository interface {
 	FindByID(ctx context.Context, id UserID) (*User, error)
 	// FindByEmail resolve um usuário pelo e-mail (ErrNotFound se não existir).
 	FindByEmail(ctx context.Context, email Email) (*User, error)
+	// FindByIDs hidrata, em lote, os usuários dos ids dados (ignora ausentes).
+	// É a leitura por trás do DataLoader (resolve N usuários numa só ida).
+	FindByIDs(ctx context.Context, ids []UserID) ([]*User, error)
 	// List devolve todos os usuários (read model simples para o demo).
 	List(ctx context.Context) ([]*User, error)
 }

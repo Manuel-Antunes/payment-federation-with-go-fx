@@ -49,14 +49,10 @@ func toGraphPayment(v pquery.PaymentView) *model.Payment {
 }
 
 // ---- Order ----------------------------------------------------------------
-
-func (r *Resolver) loadOrder(ctx context.Context, id string) (*model.Order, error) {
-	view, err := cqrs.Ask[pquery.GetOrder, pquery.OrderView](ctx, r.Queries, pquery.GetOrder{OrderID: id})
-	if err != nil {
-		return nil, err
-	}
-	return toGraphOrder(view), nil
-}
+//
+// A leitura por id (order(id), FindOrderByID) passa pelo DataLoader (ver
+// internal/interfaces/graph/dataloader). Aqui fica só o read-after-write por
+// chave de idempotência, que não é por id.
 
 // loadOrderByKey relê o pedido pela chave de idempotência (read-after-write).
 func (r *Resolver) loadOrderByKey(ctx context.Context, idempotencyKey string) (*model.Order, error) {

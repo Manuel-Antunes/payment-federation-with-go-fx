@@ -90,6 +90,52 @@ createOrder ──cmd──▶ CreateOrder handler ──persist──▶ public
                           saga: OrderCreated ──cmd──▶ ProcessPayment ──▶ eventos de pagamento
 ```
 
+### Validação na borda (diretiva `@binding`)
+
+Os inputs GraphQL são validados por uma **diretiva customizada** `@binding`
+(implementada no gqlgen — ver `internal/interfaces/graph/directives.go`), que roda
+durante a coerção do input, **antes** de despachar qualquer command. O argumento
+`constraint` é uma tag do **[go-playground/validator](https://github.com/go-playground/validator)**
+aplicada direto ao valor do campo (via `validate.Var`):
+
+```graphql
+input ProcessPaymentInput {
+  idempotencyKey: String! @binding(constraint: "min=8,max=255")
+  customerId: String!     @binding(constraint: "required")
+  amountCents: Int!       @binding(constraint: "min=1")
+  currency: String!       @binding(constraint: "oneof=BRL USD EUR")
+}
+```
+
+Aceita qualquer tag do validator (`required`, `min`/`max`, `oneof`, `email`, e o
+`notblank` do pacote non-standard, já registrado). Campos opcionais ausentes (null)
+não são validados. É **defesa em profundidade** — complementa (não substitui) as
+invariantes dos Value Objects do domínio —, devolvendo erros claros e síncronos no
+caminho do campo.
+
+### DataLoaders (batch + cache por requisição)
+
+Campos que resolvem entidades por id usam **DataLoaders**
+([vektah/dataloaden](https://github.com/vektah/dataloaden)) para evitar N+1:
+
+```
+internal/interfaces/graph/dataloader/
+├── userloader_gen.go    # gerado pelo dataloaden (go:generate)
+├── orderloader_gen.go   # idem
+└── loaders.go           # Loaders + Middleware (por requisição) + fetch em lote
+```
+
+- **UserByID** — resolve `Order.customer` (e a entity `User` na federação).
+- **OrderByID** — resolve a query `order(id)` e a entity `Order` na federação
+  (o gateway costuma pedir várias entities por requisição → o loader agrupa tudo
+  num só `GetOrdersByIDs`).
+- Um **middleware HTTP** (provido via fx) injeta um conjunto **fresco** de loaders
+  por requisição — o cache é por-request (sem vazar entre requisições nem servir
+  dado obsoleto).
+- Cada `fetch` despacha **uma** query em lote (`GetUsersByIDs` / `GetOrdersByIDs`)
+  no QueryBus para todas as chaves coletadas na janela — em vez de N buscas.
+- O resolver só faz `dataloader.For(ctx).OrderByID.Load(id)`.
+
 ## Fluxo de um pagamento (idempotente)
 
 ```

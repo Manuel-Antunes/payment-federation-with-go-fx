@@ -31,10 +31,12 @@ type Config = graphql.Config[ResolverRoot, DirectiveRoot, ComplexityRoot]
 type ResolverRoot interface {
 	Entity() EntityResolver
 	Mutation() MutationResolver
+	Order() OrderResolver
 	Query() QueryResolver
 }
 
 type DirectiveRoot struct {
+	Binding func(ctx context.Context, obj any, next graphql.Resolver, constraint string) (res any, err error)
 }
 
 type ComplexityRoot struct {
@@ -55,6 +57,7 @@ type ComplexityRoot struct {
 	Order struct {
 		AmountCents func(childComplexity int) int
 		Currency    func(childComplexity int) int
+		Customer    func(childComplexity int) int
 		CustomerID  func(childComplexity int) int
 		ID          func(childComplexity int) int
 		Status      func(childComplexity int) int
@@ -101,6 +104,9 @@ type MutationResolver interface {
 	CreateOrder(ctx context.Context, input model.CreateOrderInput) (*model.Order, error)
 	CreateUser(ctx context.Context, input model.CreateUserInput) (*model.User, error)
 	UpdateUser(ctx context.Context, input model.UpdateUserInput) (*model.User, error)
+}
+type OrderResolver interface {
+	Customer(ctx context.Context, obj *model.Order) (*model.User, error)
 }
 type QueryResolver interface {
 	Payment(ctx context.Context, id string) (*model.Payment, error)
@@ -225,6 +231,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Order.Currency(childComplexity), true
+	case "Order.customer":
+		if e.ComplexityRoot.Order.Customer == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Order.Customer(childComplexity), true
 	case "Order.customerId":
 		if e.ComplexityRoot.Order.CustomerID == nil {
 			break
@@ -458,6 +470,15 @@ func newExecutionContext(
 }
 
 var sources = []*ast.Source{
+	{Name: "../directives.graphqls", Input: `# Diretiva de validação aplicada a campos de input — valida na BORDA (antes de
+# despachar o command), devolvendo erros GraphQL com o caminho do campo. É
+# complementar às invariantes do domínio (defesa em profundidade).
+#
+# ` + "`" + `constraint` + "`" + ` é uma tag do go-playground/validator aplicada direto ao valor do
+# campo (ex.: "required,max=20", "min=8,max=255", "oneof=BRL USD EUR", "email",
+# "notblank"). Campos opcionais ausentes (null) não são validados.
+directive @binding(constraint: String!) on INPUT_FIELD_DEFINITION | ARGUMENT_DEFINITION
+`, BuiltIn: false},
 	{Name: "../schema.graphqls", Input: `# Schema GraphQL FEDERADO (Apollo Federation v2 via gqlgen).
 #
 # A diretiva @key torna Payment uma "entity" resolvível por outros subgraphs
@@ -482,17 +503,17 @@ type Payment @key(fields: "id") {
 
 input ProcessPaymentInput {
   "Chave de idempotência fornecida pelo cliente (mínimo 8 caracteres)."
-  idempotencyKey: String!
-  customerId: String!
-  amountCents: Int!
-  currency: String!
+  idempotencyKey: String! @binding(constraint: "min=8,max=255")
+  customerId: String! @binding(constraint: "required")
+  amountCents: Int! @binding(constraint: "min=1")
+  currency: String! @binding(constraint: "oneof=BRL USD EUR")
   "Opcional: força um provedor específico em runtime (ex.: \"stripe\")."
   gatewayName: String
 }
 
 input RefundPaymentInput {
-  paymentId: ID!
-  amountCents: Int!
+  paymentId: ID! @binding(constraint: "required")
+  amountCents: Int! @binding(constraint: "min=1")
 }
 
 # Order é um agregado do bounded context de pagamentos. Ao ser criado, dispara
@@ -505,15 +526,18 @@ type Order @key(fields: "id") {
   currency: String!
   # Status do pedido: CREATED
   status: String!
+  # Cliente do pedido, resolvido via DataLoader (batch + cache por requisição)
+  # a partir do customerId — evita N+1 ao listar/expandir vários pedidos.
+  customer: User!
 }
 
 input CreateOrderInput {
   "Chave de idempotência do pedido (mínimo 8 caracteres)."
-  idempotencyKey: String!
+  idempotencyKey: String! @binding(constraint: "min=8,max=255")
   "Cliente (id de um usuário existente)."
-  customerId: ID!
-  amountCents: Int!
-  currency: String!
+  customerId: ID! @binding(constraint: "required")
+  amountCents: Int! @binding(constraint: "min=1")
+  currency: String! @binding(constraint: "oneof=BRL USD EUR")
 }
 
 type Query {
@@ -540,14 +564,14 @@ type User @key(fields: "id") {
 }
 
 input CreateUserInput {
-  name: String!
-  email: String!
+  name: String! @binding(constraint: "notblank,max=120")
+  email: String! @binding(constraint: "required,email")
 }
 
 input UpdateUserInput {
-  id: ID!
-  name: String
-  email: String
+  id: ID! @binding(constraint: "required")
+  name: String @binding(constraint: "min=1,max=120")
+  email: String @binding(constraint: "email")
 }
 
 extend type Query {
@@ -654,6 +678,8 @@ func (ec *executionContext) childFields_Order(ctx context.Context, field graphql
 		return ec.fieldContext_Order_currency(ctx, field)
 	case "status":
 		return ec.fieldContext_Order_status(ctx, field)
+	case "customer":
+		return ec.fieldContext_Order_customer(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type Order", field.Name)
 }
@@ -813,6 +839,20 @@ func (ec *executionContext) childFields___Type(ctx context.Context, field graphq
 // endregion ************************** generated!.gotpl **************************
 
 // region    ***************************** args.gotpl *****************************
+
+func (ec *executionContext) dir_binding_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "constraint",
+		func(ctx context.Context, v any) (string, error) {
+			return ec.unmarshalNString2string(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["constraint"] = arg0
+	return args, nil
+}
 
 func (ec *executionContext) field_Entity_findOrderByID_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
@@ -1525,6 +1565,38 @@ func (ec *executionContext) _Order_status(ctx context.Context, field graphql.Col
 }
 func (ec *executionContext) fieldContext_Order_status(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	return graphql.NewScalarFieldContext("Order", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _Order_customer(ctx context.Context, field graphql.CollectedField, obj *model.Order) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Order_customer(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return ec.Resolvers.Order().Customer(ctx, obj)
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.User) graphql.Marshaler {
+			return ec.marshalNUser2ᚖgithubᚗcomᚋexampleᚋpaymentᚑfederationᚋinternalᚋinterfacesᚋgraphᚋmodelᚐUser(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Order_customer(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Order",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_User(ctx, field)
+		},
+	}
+	return fc, nil
 }
 
 func (ec *executionContext) _Payment_id(ctx context.Context, field graphql.CollectedField, obj *model.Payment) (ret graphql.Marshaler) {
@@ -3175,32 +3247,112 @@ func (ec *executionContext) unmarshalInputCreateOrderInput(ctx context.Context, 
 		switch k {
 		case "idempotencyKey":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("idempotencyKey"))
-			data, err := ec.unmarshalNString2string(ctx, v)
-			if err != nil {
-				return it, err
+			directive0 := func(ctx context.Context) (any, error) { return ec.unmarshalNString2string(ctx, v) }
+
+			directive1 := func(ctx context.Context) (any, error) {
+				constraint, err := ec.unmarshalNString2string(ctx, "min=8,max=255")
+				if err != nil {
+					var zeroVal string
+					return zeroVal, err
+				}
+				if ec.Directives.Binding == nil {
+					var zeroVal string
+					return zeroVal, errors.New("directive binding is not implemented")
+				}
+				return ec.Directives.Binding(ctx, obj, directive0, constraint)
 			}
-			it.IdempotencyKey = data
+
+			tmp, err := directive1(ctx)
+			if err != nil {
+				return it, graphql.ErrorOnPath(ctx, err)
+			}
+			if data, ok := tmp.(string); ok {
+				it.IdempotencyKey = data
+			} else {
+				err := fmt.Errorf(`unexpected type %T from directive, should be string`, tmp)
+				return it, graphql.ErrorOnPath(ctx, err)
+			}
 		case "customerId":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("customerId"))
-			data, err := ec.unmarshalNID2string(ctx, v)
-			if err != nil {
-				return it, err
+			directive0 := func(ctx context.Context) (any, error) { return ec.unmarshalNID2string(ctx, v) }
+
+			directive1 := func(ctx context.Context) (any, error) {
+				constraint, err := ec.unmarshalNString2string(ctx, "required")
+				if err != nil {
+					var zeroVal string
+					return zeroVal, err
+				}
+				if ec.Directives.Binding == nil {
+					var zeroVal string
+					return zeroVal, errors.New("directive binding is not implemented")
+				}
+				return ec.Directives.Binding(ctx, obj, directive0, constraint)
 			}
-			it.CustomerID = data
+
+			tmp, err := directive1(ctx)
+			if err != nil {
+				return it, graphql.ErrorOnPath(ctx, err)
+			}
+			if data, ok := tmp.(string); ok {
+				it.CustomerID = data
+			} else {
+				err := fmt.Errorf(`unexpected type %T from directive, should be string`, tmp)
+				return it, graphql.ErrorOnPath(ctx, err)
+			}
 		case "amountCents":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("amountCents"))
-			data, err := ec.unmarshalNInt2int64(ctx, v)
-			if err != nil {
-				return it, err
+			directive0 := func(ctx context.Context) (any, error) { return ec.unmarshalNInt2int64(ctx, v) }
+
+			directive1 := func(ctx context.Context) (any, error) {
+				constraint, err := ec.unmarshalNString2string(ctx, "min=1")
+				if err != nil {
+					var zeroVal int64
+					return zeroVal, err
+				}
+				if ec.Directives.Binding == nil {
+					var zeroVal int64
+					return zeroVal, errors.New("directive binding is not implemented")
+				}
+				return ec.Directives.Binding(ctx, obj, directive0, constraint)
 			}
-			it.AmountCents = data
+
+			tmp, err := directive1(ctx)
+			if err != nil {
+				return it, graphql.ErrorOnPath(ctx, err)
+			}
+			if data, ok := tmp.(int64); ok {
+				it.AmountCents = data
+			} else {
+				err := fmt.Errorf(`unexpected type %T from directive, should be int64`, tmp)
+				return it, graphql.ErrorOnPath(ctx, err)
+			}
 		case "currency":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("currency"))
-			data, err := ec.unmarshalNString2string(ctx, v)
-			if err != nil {
-				return it, err
+			directive0 := func(ctx context.Context) (any, error) { return ec.unmarshalNString2string(ctx, v) }
+
+			directive1 := func(ctx context.Context) (any, error) {
+				constraint, err := ec.unmarshalNString2string(ctx, "oneof=BRL USD EUR")
+				if err != nil {
+					var zeroVal string
+					return zeroVal, err
+				}
+				if ec.Directives.Binding == nil {
+					var zeroVal string
+					return zeroVal, errors.New("directive binding is not implemented")
+				}
+				return ec.Directives.Binding(ctx, obj, directive0, constraint)
 			}
-			it.Currency = data
+
+			tmp, err := directive1(ctx)
+			if err != nil {
+				return it, graphql.ErrorOnPath(ctx, err)
+			}
+			if data, ok := tmp.(string); ok {
+				it.Currency = data
+			} else {
+				err := fmt.Errorf(`unexpected type %T from directive, should be string`, tmp)
+				return it, graphql.ErrorOnPath(ctx, err)
+			}
 		}
 	}
 	return it, nil
@@ -3226,18 +3378,58 @@ func (ec *executionContext) unmarshalInputCreateUserInput(ctx context.Context, o
 		switch k {
 		case "name":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("name"))
-			data, err := ec.unmarshalNString2string(ctx, v)
-			if err != nil {
-				return it, err
+			directive0 := func(ctx context.Context) (any, error) { return ec.unmarshalNString2string(ctx, v) }
+
+			directive1 := func(ctx context.Context) (any, error) {
+				constraint, err := ec.unmarshalNString2string(ctx, "notblank,max=120")
+				if err != nil {
+					var zeroVal string
+					return zeroVal, err
+				}
+				if ec.Directives.Binding == nil {
+					var zeroVal string
+					return zeroVal, errors.New("directive binding is not implemented")
+				}
+				return ec.Directives.Binding(ctx, obj, directive0, constraint)
 			}
-			it.Name = data
+
+			tmp, err := directive1(ctx)
+			if err != nil {
+				return it, graphql.ErrorOnPath(ctx, err)
+			}
+			if data, ok := tmp.(string); ok {
+				it.Name = data
+			} else {
+				err := fmt.Errorf(`unexpected type %T from directive, should be string`, tmp)
+				return it, graphql.ErrorOnPath(ctx, err)
+			}
 		case "email":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("email"))
-			data, err := ec.unmarshalNString2string(ctx, v)
-			if err != nil {
-				return it, err
+			directive0 := func(ctx context.Context) (any, error) { return ec.unmarshalNString2string(ctx, v) }
+
+			directive1 := func(ctx context.Context) (any, error) {
+				constraint, err := ec.unmarshalNString2string(ctx, "required,email")
+				if err != nil {
+					var zeroVal string
+					return zeroVal, err
+				}
+				if ec.Directives.Binding == nil {
+					var zeroVal string
+					return zeroVal, errors.New("directive binding is not implemented")
+				}
+				return ec.Directives.Binding(ctx, obj, directive0, constraint)
 			}
-			it.Email = data
+
+			tmp, err := directive1(ctx)
+			if err != nil {
+				return it, graphql.ErrorOnPath(ctx, err)
+			}
+			if data, ok := tmp.(string); ok {
+				it.Email = data
+			} else {
+				err := fmt.Errorf(`unexpected type %T from directive, should be string`, tmp)
+				return it, graphql.ErrorOnPath(ctx, err)
+			}
 		}
 	}
 	return it, nil
@@ -3263,32 +3455,112 @@ func (ec *executionContext) unmarshalInputProcessPaymentInput(ctx context.Contex
 		switch k {
 		case "idempotencyKey":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("idempotencyKey"))
-			data, err := ec.unmarshalNString2string(ctx, v)
-			if err != nil {
-				return it, err
+			directive0 := func(ctx context.Context) (any, error) { return ec.unmarshalNString2string(ctx, v) }
+
+			directive1 := func(ctx context.Context) (any, error) {
+				constraint, err := ec.unmarshalNString2string(ctx, "min=8,max=255")
+				if err != nil {
+					var zeroVal string
+					return zeroVal, err
+				}
+				if ec.Directives.Binding == nil {
+					var zeroVal string
+					return zeroVal, errors.New("directive binding is not implemented")
+				}
+				return ec.Directives.Binding(ctx, obj, directive0, constraint)
 			}
-			it.IdempotencyKey = data
+
+			tmp, err := directive1(ctx)
+			if err != nil {
+				return it, graphql.ErrorOnPath(ctx, err)
+			}
+			if data, ok := tmp.(string); ok {
+				it.IdempotencyKey = data
+			} else {
+				err := fmt.Errorf(`unexpected type %T from directive, should be string`, tmp)
+				return it, graphql.ErrorOnPath(ctx, err)
+			}
 		case "customerId":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("customerId"))
-			data, err := ec.unmarshalNString2string(ctx, v)
-			if err != nil {
-				return it, err
+			directive0 := func(ctx context.Context) (any, error) { return ec.unmarshalNString2string(ctx, v) }
+
+			directive1 := func(ctx context.Context) (any, error) {
+				constraint, err := ec.unmarshalNString2string(ctx, "required")
+				if err != nil {
+					var zeroVal string
+					return zeroVal, err
+				}
+				if ec.Directives.Binding == nil {
+					var zeroVal string
+					return zeroVal, errors.New("directive binding is not implemented")
+				}
+				return ec.Directives.Binding(ctx, obj, directive0, constraint)
 			}
-			it.CustomerID = data
+
+			tmp, err := directive1(ctx)
+			if err != nil {
+				return it, graphql.ErrorOnPath(ctx, err)
+			}
+			if data, ok := tmp.(string); ok {
+				it.CustomerID = data
+			} else {
+				err := fmt.Errorf(`unexpected type %T from directive, should be string`, tmp)
+				return it, graphql.ErrorOnPath(ctx, err)
+			}
 		case "amountCents":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("amountCents"))
-			data, err := ec.unmarshalNInt2int64(ctx, v)
-			if err != nil {
-				return it, err
+			directive0 := func(ctx context.Context) (any, error) { return ec.unmarshalNInt2int64(ctx, v) }
+
+			directive1 := func(ctx context.Context) (any, error) {
+				constraint, err := ec.unmarshalNString2string(ctx, "min=1")
+				if err != nil {
+					var zeroVal int64
+					return zeroVal, err
+				}
+				if ec.Directives.Binding == nil {
+					var zeroVal int64
+					return zeroVal, errors.New("directive binding is not implemented")
+				}
+				return ec.Directives.Binding(ctx, obj, directive0, constraint)
 			}
-			it.AmountCents = data
+
+			tmp, err := directive1(ctx)
+			if err != nil {
+				return it, graphql.ErrorOnPath(ctx, err)
+			}
+			if data, ok := tmp.(int64); ok {
+				it.AmountCents = data
+			} else {
+				err := fmt.Errorf(`unexpected type %T from directive, should be int64`, tmp)
+				return it, graphql.ErrorOnPath(ctx, err)
+			}
 		case "currency":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("currency"))
-			data, err := ec.unmarshalNString2string(ctx, v)
-			if err != nil {
-				return it, err
+			directive0 := func(ctx context.Context) (any, error) { return ec.unmarshalNString2string(ctx, v) }
+
+			directive1 := func(ctx context.Context) (any, error) {
+				constraint, err := ec.unmarshalNString2string(ctx, "oneof=BRL USD EUR")
+				if err != nil {
+					var zeroVal string
+					return zeroVal, err
+				}
+				if ec.Directives.Binding == nil {
+					var zeroVal string
+					return zeroVal, errors.New("directive binding is not implemented")
+				}
+				return ec.Directives.Binding(ctx, obj, directive0, constraint)
 			}
-			it.Currency = data
+
+			tmp, err := directive1(ctx)
+			if err != nil {
+				return it, graphql.ErrorOnPath(ctx, err)
+			}
+			if data, ok := tmp.(string); ok {
+				it.Currency = data
+			} else {
+				err := fmt.Errorf(`unexpected type %T from directive, should be string`, tmp)
+				return it, graphql.ErrorOnPath(ctx, err)
+			}
 		case "gatewayName":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("gatewayName"))
 			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
@@ -3321,18 +3593,58 @@ func (ec *executionContext) unmarshalInputRefundPaymentInput(ctx context.Context
 		switch k {
 		case "paymentId":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("paymentId"))
-			data, err := ec.unmarshalNID2string(ctx, v)
-			if err != nil {
-				return it, err
+			directive0 := func(ctx context.Context) (any, error) { return ec.unmarshalNID2string(ctx, v) }
+
+			directive1 := func(ctx context.Context) (any, error) {
+				constraint, err := ec.unmarshalNString2string(ctx, "required")
+				if err != nil {
+					var zeroVal string
+					return zeroVal, err
+				}
+				if ec.Directives.Binding == nil {
+					var zeroVal string
+					return zeroVal, errors.New("directive binding is not implemented")
+				}
+				return ec.Directives.Binding(ctx, obj, directive0, constraint)
 			}
-			it.PaymentID = data
+
+			tmp, err := directive1(ctx)
+			if err != nil {
+				return it, graphql.ErrorOnPath(ctx, err)
+			}
+			if data, ok := tmp.(string); ok {
+				it.PaymentID = data
+			} else {
+				err := fmt.Errorf(`unexpected type %T from directive, should be string`, tmp)
+				return it, graphql.ErrorOnPath(ctx, err)
+			}
 		case "amountCents":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("amountCents"))
-			data, err := ec.unmarshalNInt2int64(ctx, v)
-			if err != nil {
-				return it, err
+			directive0 := func(ctx context.Context) (any, error) { return ec.unmarshalNInt2int64(ctx, v) }
+
+			directive1 := func(ctx context.Context) (any, error) {
+				constraint, err := ec.unmarshalNString2string(ctx, "min=1")
+				if err != nil {
+					var zeroVal int64
+					return zeroVal, err
+				}
+				if ec.Directives.Binding == nil {
+					var zeroVal int64
+					return zeroVal, errors.New("directive binding is not implemented")
+				}
+				return ec.Directives.Binding(ctx, obj, directive0, constraint)
 			}
-			it.AmountCents = data
+
+			tmp, err := directive1(ctx)
+			if err != nil {
+				return it, graphql.ErrorOnPath(ctx, err)
+			}
+			if data, ok := tmp.(int64); ok {
+				it.AmountCents = data
+			} else {
+				err := fmt.Errorf(`unexpected type %T from directive, should be int64`, tmp)
+				return it, graphql.ErrorOnPath(ctx, err)
+			}
 		}
 	}
 	return it, nil
@@ -3358,25 +3670,89 @@ func (ec *executionContext) unmarshalInputUpdateUserInput(ctx context.Context, o
 		switch k {
 		case "id":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("id"))
-			data, err := ec.unmarshalNID2string(ctx, v)
-			if err != nil {
-				return it, err
+			directive0 := func(ctx context.Context) (any, error) { return ec.unmarshalNID2string(ctx, v) }
+
+			directive1 := func(ctx context.Context) (any, error) {
+				constraint, err := ec.unmarshalNString2string(ctx, "required")
+				if err != nil {
+					var zeroVal string
+					return zeroVal, err
+				}
+				if ec.Directives.Binding == nil {
+					var zeroVal string
+					return zeroVal, errors.New("directive binding is not implemented")
+				}
+				return ec.Directives.Binding(ctx, obj, directive0, constraint)
 			}
-			it.ID = data
+
+			tmp, err := directive1(ctx)
+			if err != nil {
+				return it, graphql.ErrorOnPath(ctx, err)
+			}
+			if data, ok := tmp.(string); ok {
+				it.ID = data
+			} else {
+				err := fmt.Errorf(`unexpected type %T from directive, should be string`, tmp)
+				return it, graphql.ErrorOnPath(ctx, err)
+			}
 		case "name":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("name"))
-			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
-			if err != nil {
-				return it, err
+			directive0 := func(ctx context.Context) (any, error) { return ec.unmarshalOString2ᚖstring(ctx, v) }
+
+			directive1 := func(ctx context.Context) (any, error) {
+				constraint, err := ec.unmarshalNString2string(ctx, "min=1,max=120")
+				if err != nil {
+					var zeroVal *string
+					return zeroVal, err
+				}
+				if ec.Directives.Binding == nil {
+					var zeroVal *string
+					return zeroVal, errors.New("directive binding is not implemented")
+				}
+				return ec.Directives.Binding(ctx, obj, directive0, constraint)
 			}
-			it.Name = data
+
+			tmp, err := directive1(ctx)
+			if err != nil {
+				return it, graphql.ErrorOnPath(ctx, err)
+			}
+			if data, ok := tmp.(*string); ok {
+				it.Name = data
+			} else if tmp == nil {
+				it.Name = nil
+			} else {
+				err := fmt.Errorf(`unexpected type %T from directive, should be *string`, tmp)
+				return it, graphql.ErrorOnPath(ctx, err)
+			}
 		case "email":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("email"))
-			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
-			if err != nil {
-				return it, err
+			directive0 := func(ctx context.Context) (any, error) { return ec.unmarshalOString2ᚖstring(ctx, v) }
+
+			directive1 := func(ctx context.Context) (any, error) {
+				constraint, err := ec.unmarshalNString2string(ctx, "email")
+				if err != nil {
+					var zeroVal *string
+					return zeroVal, err
+				}
+				if ec.Directives.Binding == nil {
+					var zeroVal *string
+					return zeroVal, errors.New("directive binding is not implemented")
+				}
+				return ec.Directives.Binding(ctx, obj, directive0, constraint)
 			}
-			it.Email = data
+
+			tmp, err := directive1(ctx)
+			if err != nil {
+				return it, graphql.ErrorOnPath(ctx, err)
+			}
+			if data, ok := tmp.(*string); ok {
+				it.Email = data
+			} else if tmp == nil {
+				it.Email = nil
+			} else {
+				err := fmt.Errorf(`unexpected type %T from directive, should be *string`, tmp)
+				return it, graphql.ErrorOnPath(ctx, err)
+			}
 		}
 	}
 	return it, nil
@@ -3623,28 +3999,64 @@ func (ec *executionContext) _Order(ctx context.Context, sel ast.SelectionSet, ob
 		case "id":
 			out.Values[i] = ec._Order_id(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "customerId":
 			out.Values[i] = ec._Order_customerId(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "amountCents":
 			out.Values[i] = ec._Order_amountCents(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "currency":
 			out.Values[i] = ec._Order_currency(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "status":
 			out.Values[i] = ec._Order_status(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
+		case "customer":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Order_customer(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}

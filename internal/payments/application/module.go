@@ -23,6 +23,7 @@ var Module = fx.Module("payments/application",
 		query.NewGetPaymentByKeyHandler,
 		query.NewGetOrderHandler,
 		query.NewGetOrderByKeyHandler,
+		query.NewGetOrdersByIDsHandler,
 	),
 
 	// Registro de commands, queries e events (saga incluída).

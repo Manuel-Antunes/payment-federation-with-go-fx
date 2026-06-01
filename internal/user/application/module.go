@@ -20,6 +20,7 @@ var Module = fx.Module("user/application",
 		// Use-cases (query).
 		query.NewGetUserHandler,
 		query.NewGetUserByEmailHandler,
+		query.NewGetUsersByIDsHandler,
 		query.NewListUsersHandler,
 		query.NewExistsHandler,
 	),

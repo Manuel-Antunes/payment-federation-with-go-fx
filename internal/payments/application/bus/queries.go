@@ -18,6 +18,7 @@ func RegisterQueries(
 	getPaymentByKey *query.GetPaymentByKeyHandler,
 	getOrder *query.GetOrderHandler,
 	getOrderByKey *query.GetOrderByKeyHandler,
+	getOrdersByIDs *query.GetOrdersByIDsHandler,
 ) error {
 	if err := cqrs.RegisterQuery(qb, func(ctx context.Context, q query.GetPayment) (query.PaymentView, error) {
 		return getPayment.Handle(ctx, q)
@@ -31,6 +32,11 @@ func RegisterQueries(
 	}
 	if err := cqrs.RegisterQuery(qb, func(ctx context.Context, q query.GetOrder) (query.OrderView, error) {
 		return getOrder.Handle(ctx, q)
+	}); err != nil {
+		return err
+	}
+	if err := cqrs.RegisterQuery(qb, func(ctx context.Context, q query.GetOrdersByIDs) ([]query.OrderView, error) {
+		return getOrdersByIDs.Handle(ctx, q)
 	}); err != nil {
 		return err
 	}

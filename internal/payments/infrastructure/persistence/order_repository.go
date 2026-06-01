@@ -49,6 +49,19 @@ func (r *OrderMemoryRepository) FindByID(ctx context.Context, id order.OrderID) 
 	return order.FromSnapshot(s), nil
 }
 
+func (r *OrderMemoryRepository) FindByIDs(ctx context.Context, ids []order.OrderID) ([]*order.Order, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	out := make([]*order.Order, 0, len(ids))
+	for _, id := range ids {
+		if s, ok := r.byID[id.String()]; ok {
+			out = append(out, order.FromSnapshot(s))
+		}
+	}
+	return out, nil
+}
+
 func (r *OrderMemoryRepository) FindByIdempotencyKey(ctx context.Context, key string) (*order.Order, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()

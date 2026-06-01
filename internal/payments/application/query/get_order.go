@@ -40,6 +40,32 @@ func (h *GetOrderHandler) Handle(ctx context.Context, q GetOrder) (OrderView, er
 	return orderViewFrom(o), nil
 }
 
+// GetOrdersByIDs é a query de LEITURA EM LOTE — resolve N pedidos numa só
+// chamada. É o que o DataLoader de pedidos despacha para fazer o batch.
+type GetOrdersByIDs struct{ IDs []string }
+
+type GetOrdersByIDsHandler struct{ repo order.Repository }
+
+func NewGetOrdersByIDsHandler(repo order.Repository) *GetOrdersByIDsHandler {
+	return &GetOrdersByIDsHandler{repo: repo}
+}
+
+func (h *GetOrdersByIDsHandler) Handle(ctx context.Context, q GetOrdersByIDs) ([]OrderView, error) {
+	ids := make([]order.OrderID, 0, len(q.IDs))
+	for _, id := range q.IDs {
+		ids = append(ids, order.OrderID(id))
+	}
+	orders, err := h.repo.FindByIDs(ctx, ids)
+	if err != nil {
+		return nil, err
+	}
+	views := make([]OrderView, 0, len(orders))
+	for _, o := range orders {
+		views = append(views, orderViewFrom(o))
+	}
+	return views, nil
+}
+
 // GetOrderByKey resolve um pedido pela chave de idempotência (read-after-write
 // da mutation createOrder, já que o id é gerado dentro do use-case).
 type GetOrderByKey struct{ IdempotencyKey string }

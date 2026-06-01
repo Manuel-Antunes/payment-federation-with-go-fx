@@ -7,9 +7,9 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/adaptor"
 	"github.com/gofiber/fiber/v2/middleware/recover"
 
-	"github.com/example/payment-federation/internal/payments/infrastructure/gateway"
 	"github.com/example/payment-federation/internal/interfaces/graph"
-	"github.com/example/payment-federation/internal/interfaces/graph/generated"
+	"github.com/example/payment-federation/internal/interfaces/graph/dataloader"
+	"github.com/example/payment-federation/internal/payments/infrastructure/gateway"
 )
 
 // NewFiberApp constrói o servidor Fiber e monta:
@@ -17,14 +17,18 @@ import (
 //   - GET  /                : GraphQL Playground
 //   - POST /admin/gateway   : troca o gateway ativo EM RUNTIME
 //   - GET  /admin/gateway   : lista gateways e o ativo
-func NewFiberApp(resolver *graph.Resolver, registry *gateway.Registry) *fiber.App {
+//
+// O handler GraphQL é envolvido pelo middleware de DataLoaders, que injeta um
+// conjunto fresco de loaders por requisição (batch + cache por-request).
+func NewFiberApp(resolver *graph.Resolver, loaders dataloader.Middleware, registry *gateway.Registry) *fiber.App {
 	app := fiber.New(fiber.Config{AppName: "payment-federation"})
 	app.Use(recover.New())
 
-	// gqlgen é um http.Handler; adaptamos para o Fiber.
-	es := generated.NewExecutableSchema(generated.Config{Resolvers: resolver})
+	// gqlgen é um http.Handler; adaptamos para o Fiber. O schema executável é
+	// montado no pacote graph (com os resolvers + a diretiva @binding).
+	es := graph.NewExecutableSchema(resolver)
 	gql := handler.NewDefaultServer(es)
-	app.All("/query", adaptor.HTTPHandler(gql))
+	app.All("/query", adaptor.HTTPHandler(loaders(gql)))
 	app.Get("/", adaptor.HTTPHandler(playground.Handler("Payment Federation", "/query")))
 
 	registerAdmin(app, registry)

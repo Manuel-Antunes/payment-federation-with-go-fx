@@ -80,6 +80,19 @@ func (r *MemoryRepository) FindByEmail(ctx context.Context, email user.Email) (*
 	return user.FromSnapshot(r.byID[id]), nil
 }
 
+func (r *MemoryRepository) FindByIDs(ctx context.Context, ids []user.UserID) ([]*user.User, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	out := make([]*user.User, 0, len(ids))
+	for _, id := range ids {
+		if s, ok := r.byID[id.String()]; ok {
+			out = append(out, user.FromSnapshot(s))
+		}
+	}
+	return out, nil
+}
+
 func (r *MemoryRepository) List(ctx context.Context) ([]*user.User, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()

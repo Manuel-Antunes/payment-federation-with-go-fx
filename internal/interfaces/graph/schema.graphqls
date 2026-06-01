@@ -22,17 +22,17 @@ type Payment @key(fields: "id") {
 
 input ProcessPaymentInput {
   "Chave de idempotência fornecida pelo cliente (mínimo 8 caracteres)."
-  idempotencyKey: String!
-  customerId: String!
-  amountCents: Int!
-  currency: String!
+  idempotencyKey: String! @binding(constraint: "min=8,max=255")
+  customerId: String! @binding(constraint: "required")
+  amountCents: Int! @binding(constraint: "min=1")
+  currency: String! @binding(constraint: "oneof=BRL USD EUR")
   "Opcional: força um provedor específico em runtime (ex.: \"stripe\")."
   gatewayName: String
 }
 
 input RefundPaymentInput {
-  paymentId: ID!
-  amountCents: Int!
+  paymentId: ID! @binding(constraint: "required")
+  amountCents: Int! @binding(constraint: "min=1")
 }
 
 # Order é um agregado do bounded context de pagamentos. Ao ser criado, dispara
@@ -45,15 +45,18 @@ type Order @key(fields: "id") {
   currency: String!
   # Status do pedido: CREATED
   status: String!
+  # Cliente do pedido, resolvido via DataLoader (batch + cache por requisição)
+  # a partir do customerId — evita N+1 ao listar/expandir vários pedidos.
+  customer: User!
 }
 
 input CreateOrderInput {
   "Chave de idempotência do pedido (mínimo 8 caracteres)."
-  idempotencyKey: String!
+  idempotencyKey: String! @binding(constraint: "min=8,max=255")
   "Cliente (id de um usuário existente)."
-  customerId: ID!
-  amountCents: Int!
-  currency: String!
+  customerId: ID! @binding(constraint: "required")
+  amountCents: Int! @binding(constraint: "min=1")
+  currency: String! @binding(constraint: "oneof=BRL USD EUR")
 }
 
 type Query {

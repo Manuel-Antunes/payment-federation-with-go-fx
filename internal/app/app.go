@@ -7,9 +7,10 @@ import (
 	"go.uber.org/fx"
 
 	"github.com/example/payment-federation/internal/interfaces/graph"
+	"github.com/example/payment-federation/internal/interfaces/graph/dataloader"
 	httpiface "github.com/example/payment-federation/internal/interfaces/http"
-	paymentsport "github.com/example/payment-federation/internal/payments/application/port"
 	"github.com/example/payment-federation/internal/payments"
+	paymentsport "github.com/example/payment-federation/internal/payments/application/port"
 	"github.com/example/payment-federation/internal/shared"
 	"github.com/example/payment-federation/internal/user"
 )
@@ -32,9 +33,10 @@ var Module = fx.Options(
 		),
 	),
 
-	// Interface única (subgraph GraphQL + servidor HTTP).
+	// Interface única (subgraph GraphQL + servidor HTTP) + DataLoaders.
 	fx.Provide(
 		graph.NewResolver,
+		dataloader.NewMiddleware,
 		httpiface.NewFiberApp,
 	),
 )

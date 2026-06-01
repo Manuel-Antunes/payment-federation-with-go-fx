@@ -8,6 +8,7 @@ package graph
 import (
 	"context"
 
+	"github.com/example/payment-federation/internal/interfaces/graph/dataloader"
 	"github.com/example/payment-federation/internal/interfaces/graph/generated"
 	"github.com/example/payment-federation/internal/interfaces/graph/model"
 	"github.com/example/payment-federation/internal/payments/application/command"
@@ -63,21 +64,33 @@ func (r *mutationResolver) CreateOrder(ctx context.Context, input model.CreateOr
 	return r.loadOrderByKey(ctx, input.IdempotencyKey)
 }
 
+// Customer is the resolver for the customer field. Resolve o cliente do pedido
+// via DataLoader (batch + cache por requisição) a partir do customerId.
+func (r *orderResolver) Customer(ctx context.Context, obj *model.Order) (*model.User, error) {
+	return dataloader.For(ctx).UserByID.Load(obj.CustomerID)
+}
+
 // Payment is the resolver for the payment field.
 func (r *queryResolver) Payment(ctx context.Context, id string) (*model.Payment, error) {
 	return r.load(ctx, id)
 }
 
-// Order is the resolver for the order field.
+// Order is the resolver for the order field. Resolve via DataLoader (batch +
+// cache por requisição) — útil quando o mesmo pedido é referenciado mais de uma
+// vez na mesma operação.
 func (r *queryResolver) Order(ctx context.Context, id string) (*model.Order, error) {
-	return r.loadOrder(ctx, id)
+	return dataloader.For(ctx).OrderByID.Load(id)
 }
 
 // Mutation returns generated.MutationResolver implementation.
 func (r *Resolver) Mutation() generated.MutationResolver { return &mutationResolver{r} }
 
+// Order returns generated.OrderResolver implementation.
+func (r *Resolver) Order() generated.OrderResolver { return &orderResolver{r} }
+
 // Query returns generated.QueryResolver implementation.
 func (r *Resolver) Query() generated.QueryResolver { return &queryResolver{r} }
 
 type mutationResolver struct{ *Resolver }
+type orderResolver struct{ *Resolver }
 type queryResolver struct{ *Resolver }

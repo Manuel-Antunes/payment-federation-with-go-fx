@@ -8,14 +8,14 @@ type User @key(fields: "id") {
 }
 
 input CreateUserInput {
-  name: String!
-  email: String!
+  name: String! @binding(constraint: "notblank,max=120")
+  email: String! @binding(constraint: "required,email")
 }
 
 input UpdateUserInput {
-  id: ID!
-  name: String
-  email: String
+  id: ID! @binding(constraint: "required")
+  name: String @binding(constraint: "min=1,max=120")
+  email: String @binding(constraint: "email")
 }
 
 extend type Query {

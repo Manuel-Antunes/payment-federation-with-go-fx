@@ -14,6 +14,7 @@ func RegisterQueries(
 	qb *cqrs.QueryBus,
 	getByID *query.GetUserHandler,
 	getByEmail *query.GetUserByEmailHandler,
+	getByIDs *query.GetUsersByIDsHandler,
 	list *query.ListUsersHandler,
 	exists *query.ExistsHandler,
 ) error {
@@ -24,6 +25,11 @@ func RegisterQueries(
 	}
 	if err := cqrs.RegisterQuery(qb, func(ctx context.Context, q query.GetUserByEmail) (query.UserView, error) {
 		return getByEmail.Handle(ctx, q)
+	}); err != nil {
+		return err
+	}
+	if err := cqrs.RegisterQuery(qb, func(ctx context.Context, q query.GetUsersByIDs) ([]query.UserView, error) {
+		return getByIDs.Handle(ctx, q)
 	}); err != nil {
 		return err
 	}

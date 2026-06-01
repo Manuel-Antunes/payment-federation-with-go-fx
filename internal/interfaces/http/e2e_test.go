@@ -480,6 +480,129 @@ func TestAdminGatewaySwitch(t *testing.T) {
 	}
 }
 
+// TestOrderCustomerDataLoader exercita o campo Order.customer resolvido via
+// DataLoader: cria um usuário, cria um pedido para ele e expande
+// order { customer { ... } } — o loader (injetado por requisição) resolve o
+// cliente a partir do customerId em lote/cacheado.
+func TestOrderCustomerDataLoader(t *testing.T) {
+	e := newE2E(t)
+
+	customer := e.createUser("Linus", "linus@example.com")
+
+	var co struct {
+		CreateOrder struct{ ID string } `json:"createOrder"`
+	}
+	e.mustQuery(`mutation($in: CreateOrderInput!){ createOrder(input:$in){ id } }`,
+		map[string]any{"in": map[string]any{
+			"idempotencyKey": "ord-loader-1",
+			"customerId":     customer,
+			"amountCents":    3300,
+			"currency":       "BRL",
+		}}, &co)
+
+	var got struct {
+		Order struct {
+			ID         string `json:"id"`
+			CustomerID string `json:"customerId"`
+			Customer   struct {
+				ID    string `json:"id"`
+				Name  string `json:"name"`
+				Email string `json:"email"`
+			} `json:"customer"`
+		} `json:"order"`
+	}
+	e.mustQuery(`query($id: ID!){
+  order(id:$id){ id customerId customer{ id name email } }
+}`, map[string]any{"id": co.CreateOrder.ID}, &got)
+
+	if got.Order.Customer.ID != customer {
+		t.Fatalf("dataloader resolved wrong customer: got %q want %q", got.Order.Customer.ID, customer)
+	}
+	if got.Order.Customer.ID != got.Order.CustomerID {
+		t.Fatalf("customer.id (%q) must match order.customerId (%q)", got.Order.Customer.ID, got.Order.CustomerID)
+	}
+	if got.Order.Customer.Email != "linus@example.com" || got.Order.Customer.Name != "Linus" {
+		t.Fatalf("unexpected resolved customer: %+v", got.Order.Customer)
+	}
+}
+
+// --- validation directive (@binding) ----------------------------------------
+
+// TestInputValidationDirective verifica que a diretiva @constraint rejeita
+// inputs inválidos NA BORDA (antes de despachar o command), com mensagem clara
+// referente ao campo — e que inputs válidos passam.
+func TestInputValidationDirective(t *testing.T) {
+	e := newE2E(t)
+
+	cases := []struct {
+		name    string
+		op      string
+		vars    map[string]any
+		wantMsg string // substring esperado na mensagem de erro
+	}{
+		{
+			name: "idempotencyKey curta (minLength)",
+			op:   `mutation($in: ProcessPaymentInput!){ processPayment(input:$in){ id } }`,
+			vars: map[string]any{"in": map[string]any{
+				"idempotencyKey": "short", "customerId": "c1", "amountCents": 100, "currency": "BRL"}},
+			wantMsg: "mínimo 8",
+		},
+		{
+			name: "amountCents <= 0 (min)",
+			op:   `mutation($in: ProcessPaymentInput!){ processPayment(input:$in){ id } }`,
+			vars: map[string]any{"in": map[string]any{
+				"idempotencyKey": "valid-key-1", "customerId": "c1", "amountCents": 0, "currency": "BRL"}},
+			wantMsg: ">= 1",
+		},
+		{
+			name: "currency fora do conjunto (oneOf)",
+			op:   `mutation($in: ProcessPaymentInput!){ processPayment(input:$in){ id } }`,
+			vars: map[string]any{"in": map[string]any{
+				"idempotencyKey": "valid-key-1", "customerId": "c1", "amountCents": 100, "currency": "GBP"}},
+			wantMsg: "deve ser um de",
+		},
+		{
+			name: "email inválido (format)",
+			op:   `mutation($in: CreateUserInput!){ createUser(input:$in){ id } }`,
+			vars: map[string]any{"in": map[string]any{"name": "X", "email": "nope"}},
+			wantMsg: "e-mail inválido",
+		},
+		{
+			name: "nome em branco (notBlank)",
+			op:   `mutation($in: CreateUserInput!){ createUser(input:$in){ id } }`,
+			vars: map[string]any{"in": map[string]any{"name": "   ", "email": "ok@example.com"}},
+			wantMsg: "não pode ser vazio",
+		},
+		{
+			name: "createOrder amount inválido (min)",
+			op:   `mutation($in: CreateOrderInput!){ createOrder(input:$in){ id } }`,
+			vars: map[string]any{"in": map[string]any{
+				"idempotencyKey": "ord-key-123", "customerId": "usr_x", "amountCents": -5, "currency": "BRL"}},
+			wantMsg: ">= 1",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			msg := e.mustError(tc.op, tc.vars)
+			if !strings.Contains(msg, tc.wantMsg) {
+				t.Fatalf("expected error containing %q, got %q", tc.wantMsg, msg)
+			}
+		})
+	}
+
+	// input válido continua passando pela diretiva.
+	p := e.processPayment(map[string]any{
+		"idempotencyKey": "valid-after-dir",
+		"customerId":     "c1",
+		"amountCents":    100,
+		"currency":       "USD",
+	})
+	if p.Status != "CAPTURED" {
+		t.Fatalf("valid input should pass the directive, got status %q", p.Status)
+	}
+}
+
 func contains(ss []string, want string) bool {
 	for _, s := range ss {
 		if s == want {

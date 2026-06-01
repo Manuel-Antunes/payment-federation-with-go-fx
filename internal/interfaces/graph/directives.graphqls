@@ -1,0 +1,8 @@
+# Diretiva de validação aplicada a campos de input — valida na BORDA (antes de
+# despachar o command), devolvendo erros GraphQL com o caminho do campo. É
+# complementar às invariantes do domínio (defesa em profundidade).
+#
+# `constraint` é uma tag do go-playground/validator aplicada direto ao valor do
+# campo (ex.: "required,max=20", "min=8,max=255", "oneof=BRL USD EUR", "email",
+# "notblank"). Campos opcionais ausentes (null) não são validados.
+directive @binding(constraint: String!) on INPUT_FIELD_DEFINITION | ARGUMENT_DEFINITION
