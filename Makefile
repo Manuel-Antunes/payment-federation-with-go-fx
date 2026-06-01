@@ -1,4 +1,4 @@
-.PHONY: tidy generate test run dev
+.PHONY: tidy generate test e2e test-all run dev
 
 AIR_VERSION ?= v1.65.3
 
@@ -13,7 +13,15 @@ generate:
 
 # Testes de domínio (não dependem do código gerado pelo gqlgen)
 test:
-	go test ./internal/payments/domain/...
+	go test ./internal/payments/domain/... ./internal/user/domain/...
+
+# Testes end-to-end das interfaces (sobem o app via fx; requerem `make generate`).
+e2e: generate
+	GOFLAGS=-mod=mod go test -race ./internal/interfaces/...
+
+# Tudo: domínio + e2e (requer código gerado).
+test-all: generate
+	GOFLAGS=-mod=mod go test -race ./internal/...
 
 # Sobe o servidor (requer `make generate` antes, na primeira vez)
 run:
