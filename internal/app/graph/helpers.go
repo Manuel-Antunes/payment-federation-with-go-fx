@@ -5,105 +5,107 @@ import (
 
 	"github.com/example/payment-federation/internal/app/graph/model"
 	pquery "github.com/example/payment-federation/internal/payments/application/query"
+	"github.com/example/payment-federation/internal/payments/domain/order"
+	"github.com/example/payment-federation/internal/payments/domain/payment"
 	"github.com/example/payment-federation/internal/shared/cqrs"
 	uquery "github.com/example/payment-federation/internal/user/application/query"
+	"github.com/example/payment-federation/internal/user/domain/user"
 )
 
-// Este arquivo NÃO é gerado pelo gqlgen. Concentra os helpers de read-after-write
-// e o mapeamento read model -> model GraphQL. Todos despacham pelo QueryBus
-// genérico compartilhado (qualquer módulo registrado responde).
+// Este arquivo NÃO é gerado pelo gqlgen. As queries devolvem os AGREGADOS de
+// domínio; aqui (a borda) traduzimos para os models GraphQL. Todos despacham
+// pelo QueryBus genérico compartilhado.
 
 // ---- Payment --------------------------------------------------------------
 
 func (r *Resolver) load(ctx context.Context, id string) (*model.Payment, error) {
-	view, err := cqrs.Ask[pquery.GetPayment, pquery.PaymentView](ctx, r.Queries, pquery.GetPayment{PaymentID: id})
+	p, err := cqrs.Ask[pquery.GetPayment, *payment.Payment](ctx, r.Queries, pquery.GetPayment{PaymentID: id})
 	if err != nil {
 		return nil, err
 	}
-	return toGraphPayment(view), nil
+	return toGraphPayment(p), nil
 }
 
 // loadByKey relê pelo idempotencyKey (o id do pagamento é gerado no use-case).
 func (r *Resolver) loadByKey(ctx context.Context, idempotencyKey string) (*model.Payment, error) {
-	view, err := cqrs.Ask[pquery.GetPaymentByKey, pquery.PaymentView](ctx, r.Queries, pquery.GetPaymentByKey{IdempotencyKey: idempotencyKey})
+	p, err := cqrs.Ask[pquery.GetPaymentByKey, *payment.Payment](ctx, r.Queries, pquery.GetPaymentByKey{IdempotencyKey: idempotencyKey})
 	if err != nil {
 		return nil, err
 	}
-	return toGraphPayment(view), nil
+	return toGraphPayment(p), nil
 }
 
-func toGraphPayment(v pquery.PaymentView) *model.Payment {
-	p := &model.Payment{
-		ID:            v.ID,
-		CustomerID:    v.CustomerID,
-		AmountCents:   v.AmountCents,
-		Currency:      v.Currency,
-		RefundedCents: v.RefundedCents,
-		Status:        v.Status,
+func toGraphPayment(p *payment.Payment) *model.Payment {
+	m := &model.Payment{
+		ID:            p.ID().String(),
+		CustomerID:    p.CustomerID(),
+		AmountCents:   p.Amount().AmountCents(),
+		Currency:      string(p.Amount().Currency()),
+		RefundedCents: p.Refunded().AmountCents(),
+		Status:        string(p.Status()),
 	}
-	if v.GatewayRef != "" {
-		ref := v.GatewayRef
-		p.GatewayRef = &ref
+	if ref := p.GatewayRef(); !ref.IsEmpty() {
+		s := ref.String()
+		m.GatewayRef = &s
 	}
-	return p
+	return m
 }
 
 // ---- Order ----------------------------------------------------------------
 //
 // A leitura por id (order(id), FindOrderByID) passa pelo DataLoader (ver
-// internal/interfaces/graph/dataloader). Aqui fica só o read-after-write por
-// chave de idempotência, que não é por id.
+// internal/app/graph/dataloader). Aqui fica só o read-after-write por chave.
 
 // loadOrderByKey relê o pedido pela chave de idempotência (read-after-write).
 func (r *Resolver) loadOrderByKey(ctx context.Context, idempotencyKey string) (*model.Order, error) {
-	view, err := cqrs.Ask[pquery.GetOrderByKey, pquery.OrderView](ctx, r.Queries, pquery.GetOrderByKey{IdempotencyKey: idempotencyKey})
+	o, err := cqrs.Ask[pquery.GetOrderByKey, *order.Order](ctx, r.Queries, pquery.GetOrderByKey{IdempotencyKey: idempotencyKey})
 	if err != nil {
 		return nil, err
 	}
-	return toGraphOrder(view), nil
+	return toGraphOrder(o), nil
 }
 
-func toGraphOrder(v pquery.OrderView) *model.Order {
+func toGraphOrder(o *order.Order) *model.Order {
 	return &model.Order{
-		ID:          v.ID,
-		CustomerID:  v.CustomerID,
-		AmountCents: v.AmountCents,
-		Currency:    v.Currency,
-		Status:      v.Status,
+		ID:          o.ID().String(),
+		CustomerID:  o.CustomerID(),
+		AmountCents: o.Amount().AmountCents(),
+		Currency:    string(o.Amount().Currency()),
+		Status:      string(o.Status()),
 	}
 }
 
 // ---- User -----------------------------------------------------------------
 
 func (r *Resolver) loadUser(ctx context.Context, id string) (*model.User, error) {
-	view, err := cqrs.Ask[uquery.GetUser, uquery.UserView](ctx, r.Queries, uquery.GetUser{UserID: id})
+	u, err := cqrs.Ask[uquery.GetUser, *user.User](ctx, r.Queries, uquery.GetUser{UserID: id})
 	if err != nil {
 		return nil, err
 	}
-	return toGraphUser(view), nil
+	return toGraphUser(u), nil
 }
 
 // loadUserByEmail relê o usuário pelo e-mail (read-after-write de createUser).
 func (r *Resolver) loadUserByEmail(ctx context.Context, email string) (*model.User, error) {
-	view, err := cqrs.Ask[uquery.GetUserByEmail, uquery.UserView](ctx, r.Queries, uquery.GetUserByEmail{Email: email})
+	u, err := cqrs.Ask[uquery.GetUserByEmail, *user.User](ctx, r.Queries, uquery.GetUserByEmail{Email: email})
 	if err != nil {
 		return nil, err
 	}
-	return toGraphUser(view), nil
+	return toGraphUser(u), nil
 }
 
 func (r *Resolver) listUsers(ctx context.Context) ([]*model.User, error) {
-	views, err := cqrs.Ask[uquery.ListUsers, []uquery.UserView](ctx, r.Queries, uquery.ListUsers{})
+	users, err := cqrs.Ask[uquery.ListUsers, []*user.User](ctx, r.Queries, uquery.ListUsers{})
 	if err != nil {
 		return nil, err
 	}
-	out := make([]*model.User, 0, len(views))
-	for _, v := range views {
-		out = append(out, toGraphUser(v))
+	out := make([]*model.User, 0, len(users))
+	for _, u := range users {
+		out = append(out, toGraphUser(u))
 	}
 	return out, nil
 }
 
-func toGraphUser(v uquery.UserView) *model.User {
-	return &model.User{ID: v.ID, Name: v.Name, Email: v.Email}
+func toGraphUser(u *user.User) *model.User {
+	return &model.User{ID: u.ID().String(), Name: u.Name().String(), Email: u.Email().String()}
 }

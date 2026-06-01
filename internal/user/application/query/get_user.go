@@ -13,10 +13,6 @@ type GetUserHandler struct{ repo user.Repository }
 
 func NewGetUserHandler(repo user.Repository) *GetUserHandler { return &GetUserHandler{repo: repo} }
 
-func (h *GetUserHandler) Handle(ctx context.Context, q GetUser) (UserView, error) {
-	u, err := h.repo.FindByID(ctx, user.UserID(q.UserID))
-	if err != nil {
-		return UserView{}, err
-	}
-	return viewFrom(u), nil
+func (h *GetUserHandler) Handle(ctx context.Context, q GetUser) (*user.User, error) {
+	return h.repo.FindByID(ctx, user.UserID(q.UserID))
 }

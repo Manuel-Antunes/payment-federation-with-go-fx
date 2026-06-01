@@ -7,6 +7,7 @@ import (
 
 	"github.com/example/payment-federation/internal/shared/cqrs"
 	"github.com/example/payment-federation/internal/user/application/query"
+	"github.com/example/payment-federation/internal/user/domain/user"
 )
 
 // RegisterQueries registra os handlers de leitura no QueryBus genérico.
@@ -18,22 +19,22 @@ func RegisterQueries(
 	list *query.ListUsersHandler,
 	exists *query.ExistsHandler,
 ) error {
-	if err := cqrs.RegisterQuery(qb, func(ctx context.Context, q query.GetUser) (query.UserView, error) {
+	if err := cqrs.RegisterQuery(qb, func(ctx context.Context, q query.GetUser) (*user.User, error) {
 		return getByID.Handle(ctx, q)
 	}); err != nil {
 		return err
 	}
-	if err := cqrs.RegisterQuery(qb, func(ctx context.Context, q query.GetUserByEmail) (query.UserView, error) {
+	if err := cqrs.RegisterQuery(qb, func(ctx context.Context, q query.GetUserByEmail) (*user.User, error) {
 		return getByEmail.Handle(ctx, q)
 	}); err != nil {
 		return err
 	}
-	if err := cqrs.RegisterQuery(qb, func(ctx context.Context, q query.GetUsersByIDs) ([]query.UserView, error) {
+	if err := cqrs.RegisterQuery(qb, func(ctx context.Context, q query.GetUsersByIDs) ([]*user.User, error) {
 		return getByIDs.Handle(ctx, q)
 	}); err != nil {
 		return err
 	}
-	if err := cqrs.RegisterQuery(qb, func(ctx context.Context, q query.ListUsers) ([]query.UserView, error) {
+	if err := cqrs.RegisterQuery(qb, func(ctx context.Context, q query.ListUsers) ([]*user.User, error) {
 		return list.Handle(ctx, q)
 	}); err != nil {
 		return err

@@ -8,8 +8,10 @@ import (
 
 	"github.com/example/payment-federation/internal/app/graph/model"
 	pquery "github.com/example/payment-federation/internal/payments/application/query"
+	"github.com/example/payment-federation/internal/payments/domain/order"
 	"github.com/example/payment-federation/internal/shared/cqrs"
 	uquery "github.com/example/payment-federation/internal/user/application/query"
+	"github.com/example/payment-federation/internal/user/domain/user"
 )
 
 // Loaders agrupa os DataLoaders de UMA requisição. Como são criados por request
@@ -63,7 +65,7 @@ func fetchUsers(queries *cqrs.QueryBus) func(ids []string) ([]*model.User, []err
 		users := make([]*model.User, len(ids))
 		errs := make([]error, len(ids))
 
-		views, err := cqrs.Ask[uquery.GetUsersByIDs, []uquery.UserView](
+		found, err := cqrs.Ask[uquery.GetUsersByIDs, []*user.User](
 			context.Background(), queries, uquery.GetUsersByIDs{IDs: ids},
 		)
 		if err != nil {
@@ -73,13 +75,13 @@ func fetchUsers(queries *cqrs.QueryBus) func(ids []string) ([]*model.User, []err
 			return users, errs
 		}
 
-		byID := make(map[string]uquery.UserView, len(views))
-		for _, v := range views {
-			byID[v.ID] = v
+		byID := make(map[string]*user.User, len(found))
+		for _, u := range found {
+			byID[u.ID().String()] = u
 		}
 		for i, id := range ids {
-			if v, ok := byID[id]; ok {
-				users[i] = &model.User{ID: v.ID, Name: v.Name, Email: v.Email}
+			if u, ok := byID[id]; ok {
+				users[i] = &model.User{ID: u.ID().String(), Name: u.Name().String(), Email: u.Email().String()}
 			} else {
 				errs[i] = fmt.Errorf("usuário %q não encontrado", id)
 			}
@@ -95,7 +97,7 @@ func fetchOrders(queries *cqrs.QueryBus) func(ids []string) ([]*model.Order, []e
 		orders := make([]*model.Order, len(ids))
 		errs := make([]error, len(ids))
 
-		views, err := cqrs.Ask[pquery.GetOrdersByIDs, []pquery.OrderView](
+		found, err := cqrs.Ask[pquery.GetOrdersByIDs, []*order.Order](
 			context.Background(), queries, pquery.GetOrdersByIDs{IDs: ids},
 		)
 		if err != nil {
@@ -105,18 +107,18 @@ func fetchOrders(queries *cqrs.QueryBus) func(ids []string) ([]*model.Order, []e
 			return orders, errs
 		}
 
-		byID := make(map[string]pquery.OrderView, len(views))
-		for _, v := range views {
-			byID[v.ID] = v
+		byID := make(map[string]*order.Order, len(found))
+		for _, o := range found {
+			byID[o.ID().String()] = o
 		}
 		for i, id := range ids {
-			if v, ok := byID[id]; ok {
+			if o, ok := byID[id]; ok {
 				orders[i] = &model.Order{
-					ID:          v.ID,
-					CustomerID:  v.CustomerID,
-					AmountCents: v.AmountCents,
-					Currency:    v.Currency,
-					Status:      v.Status,
+					ID:          o.ID().String(),
+					CustomerID:  o.CustomerID(),
+					AmountCents: o.Amount().AmountCents(),
+					Currency:    string(o.Amount().Currency()),
+					Status:      string(o.Status()),
 				}
 			} else {
 				errs[i] = fmt.Errorf("pedido %q não encontrado", id)

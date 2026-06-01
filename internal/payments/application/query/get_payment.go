@@ -6,33 +6,8 @@ import (
 	"github.com/example/payment-federation/internal/payments/domain/payment"
 )
 
-// PaymentView é o modelo de LEITURA (read model do CQRS). É um DTO plano,
-// otimizado para consumo; nunca expomos o agregado diretamente.
-type PaymentView struct {
-	ID             string
-	IdempotencyKey string
-	CustomerID     string
-	AmountCents    int64
-	Currency       string
-	RefundedCents  int64
-	Status         string
-	GatewayRef     string
-}
-
-func viewFrom(p *payment.Payment) PaymentView {
-	return PaymentView{
-		ID:             p.ID().String(),
-		IdempotencyKey: p.IdempotencyKey().String(),
-		CustomerID:     p.CustomerID(),
-		AmountCents:    p.Amount().AmountCents(),
-		Currency:       string(p.Amount().Currency()),
-		RefundedCents:  p.Refunded().AmountCents(),
-		Status:         string(p.Status()),
-		GatewayRef:     p.GatewayRef().String(),
-	}
-}
-
-// GetPayment é uma query simples por id.
+// GetPayment é uma query simples por id. Devolve o AGREGADO de domínio; a
+// tradução para o tipo de saída (GraphQL) acontece na borda (interface).
 type GetPayment struct {
 	PaymentID string
 }
@@ -45,19 +20,15 @@ func NewGetPaymentHandler(repo payment.Repository) *GetPaymentHandler {
 	return &GetPaymentHandler{repo: repo}
 }
 
-func (h *GetPaymentHandler) Handle(ctx context.Context, q GetPayment) (PaymentView, error) {
-	p, err := h.repo.FindByID(ctx, payment.PaymentID(q.PaymentID))
-	if err != nil {
-		return PaymentView{}, err
-	}
-	return viewFrom(p), nil
+func (h *GetPaymentHandler) Handle(ctx context.Context, q GetPayment) (*payment.Payment, error) {
+	return h.repo.FindByID(ctx, payment.PaymentID(q.PaymentID))
 }
 
-// GetPaymentByKey resolve um pagamento pela chave de idempotência. É o read
-// model usado no read-after-write da mutation processPayment: como o COMMAND é
-// despachado pelo CommandBus (Watermill) — e o id do pagamento é gerado DENTRO
-// do handler —, a interface não conhece o id; relê pela chave que ela própria
-// enviou (funciona tanto para criação quanto para replay idempotente).
+// GetPaymentByKey resolve um pagamento pela chave de idempotência. É o
+// read-after-write da mutation processPayment: como o COMMAND é despachado pelo
+// CommandBus (Watermill) — e o id do pagamento é gerado DENTRO do handler —, a
+// interface não conhece o id; relê pela chave que ela própria enviou (funciona
+// tanto para criação quanto para replay idempotente).
 type GetPaymentByKey struct {
 	IdempotencyKey string
 }
@@ -70,14 +41,10 @@ func NewGetPaymentByKeyHandler(repo payment.Repository) *GetPaymentByKeyHandler 
 	return &GetPaymentByKeyHandler{repo: repo}
 }
 
-func (h *GetPaymentByKeyHandler) Handle(ctx context.Context, q GetPaymentByKey) (PaymentView, error) {
+func (h *GetPaymentByKeyHandler) Handle(ctx context.Context, q GetPaymentByKey) (*payment.Payment, error) {
 	key, err := payment.NewIdempotencyKey(q.IdempotencyKey)
 	if err != nil {
-		return PaymentView{}, err
+		return nil, err
 	}
-	p, err := h.repo.FindByIdempotencyKey(ctx, key)
-	if err != nil {
-		return PaymentView{}, err
-	}
-	return viewFrom(p), nil
+	return h.repo.FindByIdempotencyKey(ctx, key)
 }

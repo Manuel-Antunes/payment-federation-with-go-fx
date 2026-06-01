@@ -16,18 +16,10 @@ func NewGetUsersByIDsHandler(repo user.Repository) *GetUsersByIDsHandler {
 	return &GetUsersByIDsHandler{repo: repo}
 }
 
-func (h *GetUsersByIDsHandler) Handle(ctx context.Context, q GetUsersByIDs) ([]UserView, error) {
+func (h *GetUsersByIDsHandler) Handle(ctx context.Context, q GetUsersByIDs) ([]*user.User, error) {
 	ids := make([]user.UserID, 0, len(q.IDs))
 	for _, id := range q.IDs {
 		ids = append(ids, user.UserID(id))
 	}
-	users, err := h.repo.FindByIDs(ctx, ids)
-	if err != nil {
-		return nil, err
-	}
-	views := make([]UserView, 0, len(users))
-	for _, u := range users {
-		views = append(views, viewFrom(u))
-	}
-	return views, nil
+	return h.repo.FindByIDs(ctx, ids)
 }

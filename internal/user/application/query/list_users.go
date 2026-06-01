@@ -13,14 +13,6 @@ type ListUsersHandler struct{ repo user.Repository }
 
 func NewListUsersHandler(repo user.Repository) *ListUsersHandler { return &ListUsersHandler{repo: repo} }
 
-func (h *ListUsersHandler) Handle(ctx context.Context, _ ListUsers) ([]UserView, error) {
-	users, err := h.repo.List(ctx)
-	if err != nil {
-		return nil, err
-	}
-	views := make([]UserView, 0, len(users))
-	for _, u := range users {
-		views = append(views, viewFrom(u))
-	}
-	return views, nil
+func (h *ListUsersHandler) Handle(ctx context.Context, _ ListUsers) ([]*user.User, error) {
+	return h.repo.List(ctx)
 }
