@@ -1,0 +1,71 @@
+# Schema GraphQL FEDERADO (Apollo Federation v2 via gqlgen).
+#
+# A diretiva @key torna Payment uma "entity" resolvível por outros subgraphs
+# da federação. O gateway de federação (Apollo Router / Cosmo) consegue
+# montar este subgraph junto a outros (ex.: subgraph de Customer) e resolver
+# Payment.customer remotamente.
+
+extend schema
+  @link(url: "https://specs.apollo.dev/federation/v2.3", import: ["@key"])
+
+type Payment @key(fields: "id") {
+  id: ID!
+  customerId: String!
+  amountCents: Int!
+  currency: String!
+  refundedCents: Int!
+  # Status do ciclo de vida: PENDING | AUTHORIZED | CAPTURED |
+  # PARTIALLY_REFUNDED | REFUNDED | FAILED
+  status: String!
+  gatewayRef: String
+}
+
+input ProcessPaymentInput {
+  "Chave de idempotência fornecida pelo cliente (mínimo 8 caracteres)."
+  idempotencyKey: String!
+  customerId: String!
+  amountCents: Int!
+  currency: String!
+  "Opcional: força um provedor específico em runtime (ex.: \"stripe\")."
+  gatewayName: String
+}
+
+input RefundPaymentInput {
+  paymentId: ID!
+  amountCents: Int!
+}
+
+# Order é um agregado do bounded context de pagamentos. Ao ser criado, dispara
+# (via evento de domínio OrderCreated no barramento) o processamento automático
+# do pagamento. Exige um cliente (customerId) existente.
+type Order @key(fields: "id") {
+  id: ID!
+  customerId: String!
+  amountCents: Int!
+  currency: String!
+  # Status do pedido: CREATED
+  status: String!
+}
+
+input CreateOrderInput {
+  "Chave de idempotência do pedido (mínimo 8 caracteres)."
+  idempotencyKey: String!
+  "Cliente (id de um usuário existente)."
+  customerId: ID!
+  amountCents: Int!
+  currency: String!
+}
+
+type Query {
+  payment(id: ID!): Payment
+  order(id: ID!): Order
+}
+
+type Mutation {
+  "Cria, autoriza e captura um pagamento de forma idempotente."
+  processPayment(input: ProcessPaymentInput!): Payment!
+  "Reembolso total ou parcial."
+  refundPayment(input: RefundPaymentInput!): Payment!
+  "Cria um pedido para um cliente; o pagamento é processado automaticamente."
+  createOrder(input: CreateOrderInput!): Order!
+}

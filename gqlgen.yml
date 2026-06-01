@@ -1,0 +1,37 @@
+# Configuração do gqlgen. Rode: `go run github.com/99designs/gqlgen generate`
+schema:
+  - internal/interfaces/graph/*.graphqls
+
+exec:
+  filename: internal/interfaces/graph/generated/generated.go
+  package: generated
+
+# Habilita o plugin de Apollo Federation v2 (gera _entities, _service e
+# resolvers de entity a partir das diretivas @key).
+federation:
+  filename: internal/interfaces/graph/generated/federation.go
+  package: generated
+  version: 2
+
+model:
+  filename: internal/interfaces/graph/model/models_gen.go
+  package: model
+
+resolver:
+  layout: follow-schema
+  dir: internal/interfaces/graph
+  package: graph
+  filename_template: "{name}.resolvers.go"
+
+# Models escritos à mão têm prioridade (autobind), evitando regeneração.
+autobind:
+  - github.com/example/payment-federation/internal/interfaces/graph/model
+
+models:
+  ID:
+    model:
+      - github.com/99designs/gqlgen/graphql.ID
+  Int:
+    model:
+      - github.com/99designs/gqlgen/graphql.Int
+      - github.com/99designs/gqlgen/graphql.Int64

@@ -1,0 +1,10 @@
+# Código gerado pelo gqlgen (regerável com `make generate`)
+/internal/payments/interfaces/graph/generated/
+
+# Binários
+/bin/
+*.out
+
+# Air (live reload) — binário e logs de build temporários
+/tmp/
+build-errors.log

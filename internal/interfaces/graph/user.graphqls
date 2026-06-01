@@ -1,0 +1,33 @@
+# Fragmento de schema do bounded context de USUÁRIO. Estende os tipos raiz
+# Query/Mutation (definidos em schema.graphqls) — um único subgraph federado.
+
+type User @key(fields: "id") {
+  id: ID!
+  name: String!
+  email: String!
+}
+
+input CreateUserInput {
+  name: String!
+  email: String!
+}
+
+input UpdateUserInput {
+  id: ID!
+  name: String
+  email: String
+}
+
+extend type Query {
+  "Busca um usuário por id."
+  user(id: ID!): User
+  "Lista todos os usuários."
+  users: [User!]!
+}
+
+extend type Mutation {
+  "Cria um usuário."
+  createUser(input: CreateUserInput!): User!
+  "Atualiza nome e/ou e-mail de um usuário."
+  updateUser(input: UpdateUserInput!): User!
+}

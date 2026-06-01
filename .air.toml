@@ -1,0 +1,40 @@
+# Air — live reload para desenvolvimento local.
+# Uso: `make dev` (ou `air` se instalado globalmente).
+# Docs: https://github.com/air-verse/air
+#
+# Requer o código do gqlgen já gerado (`make generate`). Air recompila a cada
+# mudança em arquivos .go; mudanças no schema GraphQL exigem `make generate`
+# (que reescreve os .go gerados e dispara o reload automaticamente).
+
+root = "."
+tmp_dir = "tmp"
+
+[build]
+  # GOFLAGS=-mod=mod mantém consistência com os demais alvos do Makefile.
+  cmd = "GOFLAGS=-mod=mod go build -o ./tmp/server ./cmd/server"
+  bin = "./tmp/server"
+  # Espera 1s após a última mudança antes de rebuildar (debounce).
+  delay = 1000
+  # Só observa código Go; ignora artefatos e o que não afeta o binário.
+  include_ext = ["go"]
+  exclude_dir = ["tmp", "bin"]
+  exclude_regex = ["_test.go"]
+  # Não reinicia se nada mudou de fato.
+  exclude_unchanged = true
+  # Log de erros de build dentro de tmp/.
+  log = "build-errors.log"
+  # Envia SIGINT (em vez de SIGKILL) para o fx desligar via OnStop hooks...
+  send_interrupt = true
+  # ...dando 3s para o shutdown gracioso (HTTP + router do Watermill).
+  kill_delay = "3s"
+
+[log]
+  time = true
+
+[misc]
+  # Remove o tmp/ ao sair.
+  clean_on_exit = true
+
+[screen]
+  clear_on_rebuild = true
+  keep_scroll = false
