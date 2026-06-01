@@ -72,3 +72,12 @@ type Mutation {
   "Cria um pedido para um cliente; o pagamento é processado automaticamente."
   createOrder(input: CreateOrderInput!): Order!
 }
+
+type Subscription {
+  """
+  Emite o Payment quando o pagamento do pedido (orderId) é processado com
+  SUCESSO (capturado). O orderId corresponde à chave de idempotência do
+  pagamento criado pela saga do pedido.
+  """
+  onPaymentProcessed(orderId: ID!): Payment!
+}

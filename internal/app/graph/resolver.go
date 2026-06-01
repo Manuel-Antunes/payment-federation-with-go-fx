@@ -12,8 +12,9 @@ import (
 type Resolver struct {
 	Commands *cqrs.CommandBus
 	Queries  *cqrs.QueryBus
+	Payments *PaymentHub
 }
 
-func NewResolver(commands *cqrs.CommandBus, queries *cqrs.QueryBus) *Resolver {
-	return &Resolver{Commands: commands, Queries: queries}
+func NewResolver(commands *cqrs.CommandBus, queries *cqrs.QueryBus, payments *PaymentHub) *Resolver {
+	return &Resolver{Commands: commands, Queries: queries, Payments: payments}
 }

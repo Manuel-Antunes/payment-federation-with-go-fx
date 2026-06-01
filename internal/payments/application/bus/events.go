@@ -5,7 +5,6 @@ import (
 
 	"go.uber.org/zap"
 
-	"github.com/example/payment-federation/internal/payments/application/command"
 	"github.com/example/payment-federation/internal/payments/application/event"
 	"github.com/example/payment-federation/internal/shared/cqrs"
 )
@@ -14,7 +13,7 @@ import (
 // (que encapsula o EventProcessor do Watermill):
 //   - a projeção de pagamento (observabilidade / read models);
 //   - a SAGA: ao receber OrderCreated, dispara o processamento do pagamento.
-func RegisterEvents(events *cqrs.EventBus, commands *cqrs.CommandBus, log *zap.Logger) error {
+func RegisterEvents(events *cqrs.EventBus, orderIntegrationEventHandler *event.OrderIntegrationEventHandler, log *zap.Logger) error {
 	projection := log.Named("payment_projection")
 	saga := log.Named("order_payment_saga")
 
@@ -38,11 +37,6 @@ func RegisterEvents(events *cqrs.EventBus, commands *cqrs.CommandBus, log *zap.L
 				zap.String("order_id", evt.OrderID),
 				zap.String("customer_id", evt.CustomerID),
 			)
-			return commands.Dispatch(ctx, command.ProcessPayment{
-				IdempotencyKey: evt.OrderID,
-				CustomerID:     evt.CustomerID,
-				AmountCents:    evt.AmountCents,
-				Currency:       evt.Currency,
-			})
+			return orderIntegrationEventHandler.Handle(ctx, evt)
 		})
 }

@@ -5,6 +5,7 @@ import (
 
 	"github.com/example/payment-federation/internal/payments/application/bus"
 	"github.com/example/payment-federation/internal/payments/application/command"
+	"github.com/example/payment-federation/internal/payments/application/event"
 	"github.com/example/payment-federation/internal/payments/application/query"
 )
 
@@ -24,6 +25,8 @@ var Module = fx.Module("payments/application",
 		query.NewGetOrderHandler,
 		query.NewGetOrderByKeyHandler,
 		query.NewGetOrdersByIDsHandler,
+		// Event Handlers (saga).
+		event.NewOrderIntegrationEventHandler,
 	),
 
 	// Registro de commands, queries e events (saga incluída).

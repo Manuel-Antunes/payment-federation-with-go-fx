@@ -9,24 +9,26 @@ import (
 // PaymentView é o modelo de LEITURA (read model do CQRS). É um DTO plano,
 // otimizado para consumo; nunca expomos o agregado diretamente.
 type PaymentView struct {
-	ID            string
-	CustomerID    string
-	AmountCents   int64
-	Currency      string
-	RefundedCents int64
-	Status        string
-	GatewayRef    string
+	ID             string
+	IdempotencyKey string
+	CustomerID     string
+	AmountCents    int64
+	Currency       string
+	RefundedCents  int64
+	Status         string
+	GatewayRef     string
 }
 
 func viewFrom(p *payment.Payment) PaymentView {
 	return PaymentView{
-		ID:            p.ID().String(),
-		CustomerID:    p.CustomerID(),
-		AmountCents:   p.Amount().AmountCents(),
-		Currency:      string(p.Amount().Currency()),
-		RefundedCents: p.Refunded().AmountCents(),
-		Status:        string(p.Status()),
-		GatewayRef:    p.GatewayRef().String(),
+		ID:             p.ID().String(),
+		IdempotencyKey: p.IdempotencyKey().String(),
+		CustomerID:     p.CustomerID(),
+		AmountCents:    p.Amount().AmountCents(),
+		Currency:       string(p.Amount().Currency()),
+		RefundedCents:  p.Refunded().AmountCents(),
+		Status:         string(p.Status()),
+		GatewayRef:     p.GatewayRef().String(),
 	}
 }
 

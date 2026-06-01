@@ -70,7 +70,7 @@ func (h *RefundPaymentHandler) Handle(ctx context.Context, cmd RefundPayment) (R
 	}
 
 	if h.publisher != nil {
-		_ = h.publisher.Publish(ctx, p.PullEvents()...)
+		_ = h.publisher.Publish(ctx, p, p.PullEvents()...)
 	}
 
 	return RefundPaymentResult{

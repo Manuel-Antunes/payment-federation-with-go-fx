@@ -29,9 +29,9 @@ func NewWatermillPublisher(bus *cqrs.EventBus, log *zap.Logger) *WatermillPublis
 	return &WatermillPublisher{bus: bus, log: log.Named("event_publisher")}
 }
 
-func (p *WatermillPublisher) Publish(ctx context.Context, events ...payment.DomainEvent) error {
+func (p *WatermillPublisher) Publish(ctx context.Context, pay *payment.Payment, events ...payment.DomainEvent) error {
 	for _, e := range events {
-		evt := event.PaymentIntegrationFrom(e)
+		evt := event.PaymentIntegrationFrom(pay, e)
 		if err := p.bus.Publish(ctx, evt); err != nil {
 			p.log.Error("failed to publish payment event",
 				zap.String("event", evt.Name), zap.String("payment_id", evt.PaymentID), zap.Error(err))

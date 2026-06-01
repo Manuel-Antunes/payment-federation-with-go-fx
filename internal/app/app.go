@@ -33,10 +33,16 @@ var Module = fx.Options(
 		),
 	),
 
-	// Interface única (subgraph GraphQL + servidor HTTP) + DataLoaders.
+	// Interface única (subgraph GraphQL + servidor HTTP) + DataLoaders + Hub de
+	// subscriptions.
 	fx.Provide(
 		graph.NewResolver,
+		graph.NewPaymentHub,
 		dataloader.NewMiddleware,
 		httpiface.NewFiberApp,
 	),
+
+	// Conecta o canal do EventBus (Watermill Subscriber) ao hub da subscription
+	// de pagamentos processados.
+	fx.Invoke(graph.RunPaymentEventStream),
 )

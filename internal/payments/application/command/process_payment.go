@@ -126,7 +126,7 @@ func (h *ProcessPaymentHandler) Handle(ctx context.Context, cmd ProcessPayment) 
 
 	// 7) Publica eventos após persistir.
 	if h.publisher != nil {
-		_ = h.publisher.Publish(ctx, p.PullEvents()...)
+		_ = h.publisher.Publish(ctx, p, p.PullEvents()...)
 	}
 
 	return ProcessPaymentResult{PaymentID: p.ID().String(), Status: string(p.Status())}, nil

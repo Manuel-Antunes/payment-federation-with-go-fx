@@ -22,8 +22,10 @@ type OrderIDGenerator interface {
 }
 
 // EventPublisher publica eventos de domínio de PAGAMENTO após persistência.
+// Recebe o agregado para que o evento de integração carregue o snapshot do
+// pagamento (consumidores reagem sem reconsultar o banco).
 type EventPublisher interface {
-	Publish(ctx context.Context, events ...payment.DomainEvent) error
+	Publish(ctx context.Context, p *payment.Payment, events ...payment.DomainEvent) error
 }
 
 // OrderEventPublisher publica eventos de domínio de PEDIDO após persistência.

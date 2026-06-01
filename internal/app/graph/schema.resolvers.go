@@ -82,6 +82,14 @@ func (r *queryResolver) Order(ctx context.Context, id string) (*model.Order, err
 	return dataloader.For(ctx).OrderByID.Load(id)
 }
 
+// OnPaymentProcessed is the resolver for the onPaymentProcessed field. Devolve
+// um canal alimentado pelo PaymentHub, filtrado pelo orderId; o gqlgen transmite
+// o Payment ao cliente quando o pagamento daquele pedido for capturado, e encerra
+// quando o ctx (subscription) é cancelado.
+func (r *subscriptionResolver) OnPaymentProcessed(ctx context.Context, orderID string) (<-chan *model.Payment, error) {
+	return r.Payments.Subscribe(ctx, orderID), nil
+}
+
 // Mutation returns generated.MutationResolver implementation.
 func (r *Resolver) Mutation() generated.MutationResolver { return &mutationResolver{r} }
 
@@ -91,6 +99,10 @@ func (r *Resolver) Order() generated.OrderResolver { return &orderResolver{r} }
 // Query returns generated.QueryResolver implementation.
 func (r *Resolver) Query() generated.QueryResolver { return &queryResolver{r} }
 
+// Subscription returns generated.SubscriptionResolver implementation.
+func (r *Resolver) Subscription() generated.SubscriptionResolver { return &subscriptionResolver{r} }
+
 type mutationResolver struct{ *Resolver }
 type orderResolver struct{ *Resolver }
 type queryResolver struct{ *Resolver }
+type subscriptionResolver struct{ *Resolver }

@@ -23,6 +23,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/example/payment-federation/internal/app"
+	"github.com/example/payment-federation/internal/app/graph"
 )
 
 // testTimeoutMS limita cada request (em ms) para que um deadlock falhe o teste
@@ -30,8 +31,9 @@ import (
 const testTimeoutMS = 10_000
 
 type e2e struct {
-	t   *testing.T
-	app *fiber.App
+	t        *testing.T
+	app      *fiber.App
+	resolver *graph.Resolver // exposto p/ testar subscriptions sem websocket
 }
 
 // newE2E cria um BANCO novo no container compartilhado, sobe uma instância
@@ -51,12 +53,13 @@ func newE2E(t *testing.T) *e2e {
 	}
 
 	var fiberApp *fiber.App
+	var resolver *graph.Resolver
 	fxApp := fx.New(
 		fx.Provide(func() *zap.Logger { return zap.NewNop() }),
 		fx.WithLogger(func() fxevent.Logger { return fxevent.NopLogger }),
 		fx.Supply(db), // injeta o *sql.DB do teste; os clients ent migram no Start
 		app.Module,
-		fx.Populate(&fiberApp),
+		fx.Populate(&fiberApp, &resolver),
 	)
 
 	startCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -75,7 +78,7 @@ func newE2E(t *testing.T) *e2e {
 		dropDatabase(dbName)
 	})
 
-	return &e2e{t: t, app: fiberApp}
+	return &e2e{t: t, app: fiberApp, resolver: resolver}
 }
 
 // --- transporte GraphQL / HTTP ----------------------------------------------

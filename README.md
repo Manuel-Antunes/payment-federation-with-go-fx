@@ -90,6 +90,29 @@ createOrder ──cmd──▶ CreateOrder handler ──persist──▶ public
                           saga: OrderCreated ──cmd──▶ ProcessPayment ──▶ eventos de pagamento
 ```
 
+### Subscription: `onPaymentProcessed(orderId)`
+
+A subscription GraphQL emite o `Payment` quando o pagamento de um pedido é
+processado com **sucesso** (capturado). Em vez de reconsultar o banco, ela ouve o
+EventBus como um **canal Go nativo do Watermill**: `RunPaymentEventStream` chama
+`message.Subscriber.Subscribe(ctx, "PaymentIntegrationEvent")` e obtém um
+`<-chan *message.Message` (o mesmo evento que o consumidor `payment_projection`
+observa — fan-out do GoChannel). O pump desserializa o evento — que já carrega o
+**snapshot do pagamento** —, faz `Ack` e publica num **PaymentHub** in-process
+(broadcaster filtrado por `orderId` == chave de idempotência da saga). O resolver
+devolve um canal; o assinante é removido quando o contexto da subscription é
+cancelado. Assim a subscription não toca o read model — os dados vêm no evento.
+
+```graphql
+subscription { onPaymentProcessed(orderId: "ord_...") { id status amountCents } }
+```
+
+> Transporte: o handler gqlgen (`NewDefaultServer`) já inclui o transporte
+> WebSocket. Como o `/query` é servido via adaptador fasthttp do Fiber (que não
+> faz *hijack* de conexão), o WebSocket não sobe por esse caminho — para expor a
+> subscription na rede, sirva o handler gqlgen num listener `net/http`. A lógica
+> (evento → hub → canal) é coberta por testes e2e (`subscription_test.go`).
+
 ### Validação na borda (diretiva `@binding`)
 
 Os inputs GraphQL são validados por uma **diretiva customizada** `@binding`
