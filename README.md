@@ -127,6 +127,11 @@ sobe o servidor recompilando a cada alteração em arquivos `.go` (config em
 `go run github.com/air-verse/air` (sem instalar nada). Editou o `schema.graphqls`?
 Rode `make generate` — os `.go` regerados disparam o reload automaticamente.
 
+O `make dev` define `APP_ENV=dev`, que liga o **logger de console colorido** (em
+vez do JSON de produção) e silencia os eventos do framework fx para `debug`,
+deixando os logs limpos. Em produção (sem `APP_ENV=dev`) o logger é JSON
+estruturado. Dá para forçar em qualquer comando: `APP_ENV=dev make run`.
+
 > O diretório `internal/payments/interfaces/graph/generated/` é **gerado** pelo gqlgen e não vem versionado. Rode `make generate` na primeira vez (e sempre que editar `schema.graphqls`).
 
 Playground GraphQL: http://localhost:8080/ — endpoint: `POST /query`.

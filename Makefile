@@ -27,12 +27,13 @@ test-all: generate
 run:
 	go run ./cmd/server
 
-# Desenvolvimento local com live reload (Air). Gera o código do gqlgen primeiro
-# e usa o `air` global se existir; senão, roda via `go run` (sem instalar nada).
+# Desenvolvimento local com live reload (Air) e logs bonitos (APP_ENV=dev liga
+# o logger de console colorido). Gera o gqlgen primeiro e usa o `air` global se
+# existir; senão, roda via `go run` (sem instalar nada).
 dev: generate
 	@if command -v air >/dev/null 2>&1; then \
-		air; \
+		APP_ENV=dev air; \
 	else \
 		echo ">> air não encontrado no PATH; usando 'go run github.com/air-verse/air@$(AIR_VERSION)'"; \
-		go run github.com/air-verse/air@$(AIR_VERSION); \
+		APP_ENV=dev go run github.com/air-verse/air@$(AIR_VERSION); \
 	fi
