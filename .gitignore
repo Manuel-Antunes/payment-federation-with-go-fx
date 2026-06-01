@@ -1,10 +1,14 @@
 # Código gerado pelo gqlgen (regerável com `make generate`)
-/internal/payments/interfaces/graph/generated/
+/internal/app/graph/generated/
 
 # Binários
 /bin/
+/payment-federation
 *.out
 
 # Air (live reload) — binário e logs de build temporários
 /tmp/
 build-errors.log
+
+# Variáveis de ambiente locais (use .env.example como modelo)
+.env

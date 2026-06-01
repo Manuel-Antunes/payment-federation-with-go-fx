@@ -6,18 +6,26 @@ import (
 	"strings"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/joho/godotenv"
 	"go.uber.org/fx"
 	"go.uber.org/fx/fxevent"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 
 	"github.com/example/payment-federation/internal/app"
+	"github.com/example/payment-federation/internal/shared/database"
 )
 
 func main() {
+	// Carrega o .env (se existir) ANTES de qualquer leitura de ambiente. Não
+	// sobrescreve variáveis já definidas no ambiente real — então prod/CI vencem.
+	_ = godotenv.Load()
+
 	fx.New(
 		// Logger: console colorido em dev, JSON em produção.
 		fx.Provide(newLogger),
+		// Conexão Postgres compartilhada (DSN via DATABASE_URL).
+		fx.Provide(database.NewDB),
 		// Em dev, os eventos do framework (provided/invoking/...) vão para
 		// Debug, ficando fora do nível Info — logs limpos. Em produção saem
 		// em Info (JSON), úteis para observabilidade.

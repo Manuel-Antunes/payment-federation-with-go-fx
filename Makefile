@@ -1,25 +1,34 @@
-.PHONY: tidy generate test e2e test-all run dev
+.PHONY: tidy generate test e2e test-all run dev db-up db-down
 
 AIR_VERSION ?= v1.65.3
 
-# Baixa dependências e gera go.sum (requer código gerado pelo gqlgen)
+# Baixa dependências e gera go.sum (requer código gerado por ent + gqlgen)
 tidy: generate
 	go mod tidy
 
-# Gera o código do gqlgen (generated.go, federation.go, models_gen.go)
+# Gera o código: ent (por módulo) e depois gqlgen.
 generate:
 	GOFLAGS=-mod=mod go mod download
+	GOFLAGS=-mod=mod go generate ./internal/user/infrastructure/ent/ ./internal/payments/infrastructure/ent/
 	GOFLAGS=-mod=mod go run github.com/99designs/gqlgen generate
 
-# Testes de domínio (não dependem do código gerado pelo gqlgen)
+# Sobe/derruba o Postgres local (docker compose).
+db-up:
+	docker compose up -d postgres
+
+db-down:
+	docker compose down
+
+# Testes de domínio (não dependem de código gerado nem de banco)
 test:
 	go test ./internal/payments/domain/... ./internal/user/domain/...
 
-# Testes end-to-end das interfaces (sobem o app via fx; requerem `make generate`).
+# Testes end-to-end (sobem o app via fx + Postgres via testcontainers; requerem
+# Docker e `make generate`).
 e2e: generate
-	GOFLAGS=-mod=mod go test -race ./internal/interfaces/...
+	GOFLAGS=-mod=mod go test -race ./internal/app/...
 
-# Tudo: domínio + e2e (requer código gerado).
+# Tudo: domínio + e2e (requer código gerado + Docker).
 test-all: generate
 	GOFLAGS=-mod=mod go test -race ./internal/...
 

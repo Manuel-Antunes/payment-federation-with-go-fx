@@ -155,17 +155,67 @@ use-case, a interface relê pela `IdempotencyKey` que ela mesma enviou.
 
 A idempotência é garantida em três pontos: a `IdempotencyKey` (VO), o `Repository.Save` (rejeita chave duplicada), e o próprio gateway (mesma chave ⇒ mesma `GatewayReference`).
 
+## Persistência (ent + Postgres)
+
+A persistência usa **[ent](https://entgo.io/)** sobre **Postgres**. A geração é
+**por módulo** (cada bounded context tem o seu schema e client ent, mantendo a
+fronteira de persistência):
+
+```
+internal/user/infrastructure/ent/        # client ent do módulo user (tabela users)
+  ├── schema/user.go                      # schema ent (id string gerado no domínio)
+  └── *.go                                # gerado por `ent generate`
+internal/payments/infrastructure/ent/    # client ent de payments (tabelas payments, orders)
+  └── schema/{payment,order}.go
+```
+
+- **Conexão única, clients por módulo:** `internal/shared/database` abre um
+  `*sql.DB` Postgres; cada módulo cria o seu `*ent.Client` por cima dele
+  (`entsql.OpenDB`) — um pool, schemas independentes.
+- **Mapeamento ent ↔ domínio:** cada entidade tem um `{name}_schema.go` em
+  `infrastructure/persistence` — uma struct que **embute** a linha ent gerada e o
+  agregado de domínio, concentrando a conversão (via `Snapshot`). Os repositórios
+  (`*_repository.go`) implementam as portas do domínio sobre o ent.
+- **Migração:** auto-migração do ent no start (`client.Schema.Create` — a
+  recomendação do getting-started). Cada módulo migra o seu schema. Em produção,
+  migrar para [Atlas](https://atlasgo.io/) (migrações versionadas) é direto.
+
+### Testes e2e com Postgres real (testcontainers)
+
+Os testes end-to-end ([internal/app/http/e2e_test.go](internal/app/http/e2e_test.go))
+sobem **um** container Postgres por suíte ([testcontainers](https://golang.testcontainers.org/)),
+abrindo uma conexão admin uma única vez. Para **cada teste**: cria um banco novo,
+migra (no `Start` do fx) e, ao final, **dropa** o banco — isolamento total sem
+container por teste. Requer Docker.
+
 ## Como rodar
 
-Pré-requisito: Go 1.25+.
+Pré-requisitos: Go 1.25+ e Docker (Postgres + testcontainers nos e2e).
 
 ```bash
-make generate    # gera o código do gqlgen (generated/, models_gen.go)
+cp .env.example .env   # configuração local (carregada no boot via godotenv)
+make db-up       # sobe o Postgres local (docker compose)
+make generate    # gera o código: ent (por módulo) + gqlgen
 make tidy        # baixa dependências (gera go.sum)
-make test        # testes de domínio (independem do código gerado)
-make run         # sobe em http://localhost:8080
+make test        # testes de domínio (não dependem de banco)
+make e2e         # testes end-to-end (Postgres via testcontainers; requer Docker)
+make run         # sobe em http://localhost:8080 (conecta no Postgres)
 make dev         # desenvolvimento local com live reload (Air)
+make db-down     # derruba o Postgres
 ```
+
+### Configuração (.env)
+
+O servidor carrega um **`.env`** no boot (via [godotenv](https://github.com/joho/godotenv))
+sem sobrescrever variáveis já definidas no ambiente real (prod/CI vencem). Copie o
+modelo: `cp .env.example .env`. As credenciais default do banco são **`lucid`**
+(usuário/senha/banco) — e casam com o `docker-compose.yml`.
+
+A conexão Postgres resolve o DSN assim (`internal/shared/database`):
+
+- `DATABASE_URL` definido → usa direto (sobrescreve tudo); senão
+- monta de `DB_HOST`/`DB_PORT`/`DB_USER`/`DB_PASSWORD`/`DB_NAME`/`DB_SSLMODE`
+  (defaults `localhost:5432`, usuário/senha/banco `lucid`, `sslmode=disable`).
 
 `make dev` usa o [Air](https://github.com/air-verse/air): roda `make generate` e
 sobe o servidor recompilando a cada alteração em arquivos `.go` (config em
@@ -242,6 +292,6 @@ Também é possível rotear por requisição passando `gatewayName` no input da 
 ## Notas de design
 
 - **Money em centavos (int64)** evita erro de ponto flutuante; operações retornam novos VOs.
-- **Concorrência otimista** via `Version` no `Update` do repositório.
+- **Concorrência otimista** via `Version` no `Update` do repositório (no ent, `Update().Where(VersionEQ(...))` — 0 linhas afetadas ⇒ conflito).
 - **Eventos de domínio** são acumulados no agregado e publicados só após persistir (pronto para virar um _outbox_).
-- O `MemoryRepository` é para dev/teste; trocá-lo por Postgres é só implementar a porta `payment.Repository` e religar no `InfrastructureModule` — nada no domínio muda.
+- A persistência é **ent + Postgres**, com schema/client **por módulo**; o domínio permanece puro (mapeia via `Snapshot` nos `*_schema.go`), então trocar o banco/ORM não toca em domínio nem aplicação.

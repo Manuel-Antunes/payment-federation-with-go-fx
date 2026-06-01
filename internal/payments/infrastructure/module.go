@@ -1,6 +1,11 @@
 package infrastructure
 
 import (
+	"context"
+	"database/sql"
+
+	"entgo.io/ent/dialect"
+	entsql "entgo.io/ent/dialect/sql"
 	"go.uber.org/fx"
 	"go.uber.org/zap"
 
@@ -8,24 +13,26 @@ import (
 	"github.com/example/payment-federation/internal/payments/domain/order"
 	"github.com/example/payment-federation/internal/payments/domain/payment"
 	"github.com/example/payment-federation/internal/payments/infrastructure/adapters"
+	entx "github.com/example/payment-federation/internal/payments/infrastructure/ent"
 	"github.com/example/payment-federation/internal/payments/infrastructure/gateway"
 	"github.com/example/payment-federation/internal/payments/infrastructure/messaging"
 	"github.com/example/payment-federation/internal/payments/infrastructure/persistence"
 )
 
-// Module é o módulo de INFRAESTRUTURA do bounded context de pagamentos. Provê
-// os adaptadores concretos e as referências de IoC das portas da aplicação:
-// repositórios, gateways/serviços, geradores de id e publishers de evento.
+// Module é o módulo de INFRAESTRUTURA do bounded context de pagamentos. Provê o
+// client ent do módulo (sobre o *sql.DB compartilhado), os repositórios ent,
+// gateways, geradores de id e publishers de evento; e migra o schema no start.
 var Module = fx.Module("payments/infrastructure",
 	fx.Provide(
-		// Repository de pagamento (porta) <- MemoryRepository.
+		newEntClient,
+		// Repository de pagamento (porta) <- PaymentEntRepository.
 		fx.Annotate(
-			persistence.NewMemoryRepository,
+			persistence.NewPaymentEntRepository,
 			fx.As(new(payment.Repository)),
 		),
-		// Repository de pedido (porta) <- OrderMemoryRepository.
+		// Repository de pedido (porta) <- OrderEntRepository.
 		fx.Annotate(
-			persistence.NewOrderMemoryRepository,
+			persistence.NewOrderEntRepository,
 			fx.As(new(order.Repository)),
 		),
 
@@ -48,7 +55,24 @@ var Module = fx.Module("payments/infrastructure",
 			fx.As(new(port.OrderEventPublisher)),
 		),
 	),
+	fx.Invoke(migrate),
 )
+
+// newEntClient cria o client ent do módulo por cima do *sql.DB compartilhado.
+func newEntClient(db *sql.DB) *entx.Client {
+	drv := entsql.OpenDB(dialect.Postgres, db)
+	return entx.NewClient(entx.Driver(drv))
+}
+
+// migrate cria/atualiza as tabelas do módulo de pagamentos no start.
+func migrate(lc fx.Lifecycle, client *entx.Client, log *zap.Logger) {
+	lc.Append(fx.Hook{
+		OnStart: func(ctx context.Context) error {
+			log.Info("migrando schema do módulo payments")
+			return client.Schema.Create(ctx)
+		},
+	})
+}
 
 // newGatewayRegistry registra os provedores disponíveis e define o ativo
 // inicial. Novos provedores podem ser trocados em runtime via /admin/gateway.

@@ -1,0 +1,22 @@
+# Postgres para desenvolvimento local. Suba com `make db-up` (ou `docker compose up -d`).
+# As credenciais casam com os defaults do app (.env / internal/shared/database):
+# usuário/senha/banco = "lucid".
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: lucid
+      POSTGRES_PASSWORD: lucid
+      POSTGRES_DB: lucid
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lucid -d lucid"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  pgdata:
