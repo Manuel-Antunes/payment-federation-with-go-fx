@@ -8,7 +8,7 @@ package graph
 import (
 	"context"
 
-	"github.com/example/payment-federation/internal/interfaces/graph/model"
+	"github.com/example/payment-federation/internal/app/graph/model"
 	usercmd "github.com/example/payment-federation/internal/user/application/command"
 )
 

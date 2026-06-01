@@ -37,3 +37,6 @@ dev: generate
 		echo ">> air não encontrado no PATH; usando 'go run github.com/air-verse/air@$(AIR_VERSION)'"; \
 		APP_ENV=dev go run github.com/air-verse/air@$(AIR_VERSION); \
 	fi
+
+build:
+	go build -o payment-federation ./cmd/server

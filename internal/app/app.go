@@ -6,9 +6,9 @@ package app
 import (
 	"go.uber.org/fx"
 
-	"github.com/example/payment-federation/internal/interfaces/graph"
-	"github.com/example/payment-federation/internal/interfaces/graph/dataloader"
-	httpiface "github.com/example/payment-federation/internal/interfaces/http"
+	"github.com/example/payment-federation/internal/app/graph"
+	"github.com/example/payment-federation/internal/app/graph/dataloader"
+	httpiface "github.com/example/payment-federation/internal/app/http"
 	"github.com/example/payment-federation/internal/payments"
 	paymentsport "github.com/example/payment-federation/internal/payments/application/port"
 	"github.com/example/payment-federation/internal/shared"

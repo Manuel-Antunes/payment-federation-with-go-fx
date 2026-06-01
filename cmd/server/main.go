@@ -28,8 +28,6 @@ func main() {
 			}
 			return l
 		}),
-
-		// Composição completa: kernel + bounded contexts + interface.
 		app.Module,
 
 		// Sobe e desce o servidor HTTP (Fiber) via lifecycle do fx.

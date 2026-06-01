@@ -3,7 +3,7 @@ package graph
 import (
 	"context"
 
-	"github.com/example/payment-federation/internal/interfaces/graph/model"
+	"github.com/example/payment-federation/internal/app/graph/model"
 	pquery "github.com/example/payment-federation/internal/payments/application/query"
 	"github.com/example/payment-federation/internal/shared/cqrs"
 	uquery "github.com/example/payment-federation/internal/user/application/query"

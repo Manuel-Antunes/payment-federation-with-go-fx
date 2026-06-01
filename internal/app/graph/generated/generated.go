@@ -14,7 +14,7 @@ import (
 	"github.com/99designs/gqlgen/graphql"
 	"github.com/99designs/gqlgen/graphql/introspection"
 	"github.com/99designs/gqlgen/plugin/federation/fedruntime"
-	"github.com/example/payment-federation/internal/interfaces/graph/model"
+	"github.com/example/payment-federation/internal/app/graph/model"
 	gqlparser "github.com/vektah/gqlparser/v2"
 	"github.com/vektah/gqlparser/v2/ast"
 )
@@ -901,7 +901,7 @@ func (ec *executionContext) field_Mutation_createOrder_args(ctx context.Context,
 	args := map[string]any{}
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input",
 		func(ctx context.Context, v any) (model.CreateOrderInput, error) {
-			return ec.unmarshalNCreateOrderInput2githubᚗcomᚋexampleᚋpaymentᚑfederationᚋinternalᚋinterfacesᚋgraphᚋmodelᚐCreateOrderInput(ctx, v)
+			return ec.unmarshalNCreateOrderInput2githubᚗcomᚋexampleᚋpaymentᚑfederationᚋinternalᚋappᚋgraphᚋmodelᚐCreateOrderInput(ctx, v)
 		})
 	if err != nil {
 		return nil, err
@@ -915,7 +915,7 @@ func (ec *executionContext) field_Mutation_createUser_args(ctx context.Context, 
 	args := map[string]any{}
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input",
 		func(ctx context.Context, v any) (model.CreateUserInput, error) {
-			return ec.unmarshalNCreateUserInput2githubᚗcomᚋexampleᚋpaymentᚑfederationᚋinternalᚋinterfacesᚋgraphᚋmodelᚐCreateUserInput(ctx, v)
+			return ec.unmarshalNCreateUserInput2githubᚗcomᚋexampleᚋpaymentᚑfederationᚋinternalᚋappᚋgraphᚋmodelᚐCreateUserInput(ctx, v)
 		})
 	if err != nil {
 		return nil, err
@@ -929,7 +929,7 @@ func (ec *executionContext) field_Mutation_processPayment_args(ctx context.Conte
 	args := map[string]any{}
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input",
 		func(ctx context.Context, v any) (model.ProcessPaymentInput, error) {
-			return ec.unmarshalNProcessPaymentInput2githubᚗcomᚋexampleᚋpaymentᚑfederationᚋinternalᚋinterfacesᚋgraphᚋmodelᚐProcessPaymentInput(ctx, v)
+			return ec.unmarshalNProcessPaymentInput2githubᚗcomᚋexampleᚋpaymentᚑfederationᚋinternalᚋappᚋgraphᚋmodelᚐProcessPaymentInput(ctx, v)
 		})
 	if err != nil {
 		return nil, err
@@ -943,7 +943,7 @@ func (ec *executionContext) field_Mutation_refundPayment_args(ctx context.Contex
 	args := map[string]any{}
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input",
 		func(ctx context.Context, v any) (model.RefundPaymentInput, error) {
-			return ec.unmarshalNRefundPaymentInput2githubᚗcomᚋexampleᚋpaymentᚑfederationᚋinternalᚋinterfacesᚋgraphᚋmodelᚐRefundPaymentInput(ctx, v)
+			return ec.unmarshalNRefundPaymentInput2githubᚗcomᚋexampleᚋpaymentᚑfederationᚋinternalᚋappᚋgraphᚋmodelᚐRefundPaymentInput(ctx, v)
 		})
 	if err != nil {
 		return nil, err
@@ -957,7 +957,7 @@ func (ec *executionContext) field_Mutation_updateUser_args(ctx context.Context, 
 	args := map[string]any{}
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input",
 		func(ctx context.Context, v any) (model.UpdateUserInput, error) {
-			return ec.unmarshalNUpdateUserInput2githubᚗcomᚋexampleᚋpaymentᚑfederationᚋinternalᚋinterfacesᚋgraphᚋmodelᚐUpdateUserInput(ctx, v)
+			return ec.unmarshalNUpdateUserInput2githubᚗcomᚋexampleᚋpaymentᚑfederationᚋinternalᚋappᚋgraphᚋmodelᚐUpdateUserInput(ctx, v)
 		})
 	if err != nil {
 		return nil, err
@@ -1114,7 +1114,7 @@ func (ec *executionContext) _Entity_findOrderByID(ctx context.Context, field gra
 		},
 		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v *model.Order) graphql.Marshaler {
-			return ec.marshalNOrder2ᚖgithubᚗcomᚋexampleᚋpaymentᚑfederationᚋinternalᚋinterfacesᚋgraphᚋmodelᚐOrder(ctx, selections, v)
+			return ec.marshalNOrder2ᚖgithubᚗcomᚋexampleᚋpaymentᚑfederationᚋinternalᚋappᚋgraphᚋmodelᚐOrder(ctx, selections, v)
 		},
 		true,
 		true,
@@ -1158,7 +1158,7 @@ func (ec *executionContext) _Entity_findPaymentByID(ctx context.Context, field g
 		},
 		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v *model.Payment) graphql.Marshaler {
-			return ec.marshalNPayment2ᚖgithubᚗcomᚋexampleᚋpaymentᚑfederationᚋinternalᚋinterfacesᚋgraphᚋmodelᚐPayment(ctx, selections, v)
+			return ec.marshalNPayment2ᚖgithubᚗcomᚋexampleᚋpaymentᚑfederationᚋinternalᚋappᚋgraphᚋmodelᚐPayment(ctx, selections, v)
 		},
 		true,
 		true,
@@ -1202,7 +1202,7 @@ func (ec *executionContext) _Entity_findUserByID(ctx context.Context, field grap
 		},
 		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v *model.User) graphql.Marshaler {
-			return ec.marshalNUser2ᚖgithubᚗcomᚋexampleᚋpaymentᚑfederationᚋinternalᚋinterfacesᚋgraphᚋmodelᚐUser(ctx, selections, v)
+			return ec.marshalNUser2ᚖgithubᚗcomᚋexampleᚋpaymentᚑfederationᚋinternalᚋappᚋgraphᚋmodelᚐUser(ctx, selections, v)
 		},
 		true,
 		true,
@@ -1246,7 +1246,7 @@ func (ec *executionContext) _Mutation_processPayment(ctx context.Context, field 
 		},
 		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v *model.Payment) graphql.Marshaler {
-			return ec.marshalNPayment2ᚖgithubᚗcomᚋexampleᚋpaymentᚑfederationᚋinternalᚋinterfacesᚋgraphᚋmodelᚐPayment(ctx, selections, v)
+			return ec.marshalNPayment2ᚖgithubᚗcomᚋexampleᚋpaymentᚑfederationᚋinternalᚋappᚋgraphᚋmodelᚐPayment(ctx, selections, v)
 		},
 		true,
 		true,
@@ -1290,7 +1290,7 @@ func (ec *executionContext) _Mutation_refundPayment(ctx context.Context, field g
 		},
 		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v *model.Payment) graphql.Marshaler {
-			return ec.marshalNPayment2ᚖgithubᚗcomᚋexampleᚋpaymentᚑfederationᚋinternalᚋinterfacesᚋgraphᚋmodelᚐPayment(ctx, selections, v)
+			return ec.marshalNPayment2ᚖgithubᚗcomᚋexampleᚋpaymentᚑfederationᚋinternalᚋappᚋgraphᚋmodelᚐPayment(ctx, selections, v)
 		},
 		true,
 		true,
@@ -1334,7 +1334,7 @@ func (ec *executionContext) _Mutation_createOrder(ctx context.Context, field gra
 		},
 		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v *model.Order) graphql.Marshaler {
-			return ec.marshalNOrder2ᚖgithubᚗcomᚋexampleᚋpaymentᚑfederationᚋinternalᚋinterfacesᚋgraphᚋmodelᚐOrder(ctx, selections, v)
+			return ec.marshalNOrder2ᚖgithubᚗcomᚋexampleᚋpaymentᚑfederationᚋinternalᚋappᚋgraphᚋmodelᚐOrder(ctx, selections, v)
 		},
 		true,
 		true,
@@ -1378,7 +1378,7 @@ func (ec *executionContext) _Mutation_createUser(ctx context.Context, field grap
 		},
 		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v *model.User) graphql.Marshaler {
-			return ec.marshalNUser2ᚖgithubᚗcomᚋexampleᚋpaymentᚑfederationᚋinternalᚋinterfacesᚋgraphᚋmodelᚐUser(ctx, selections, v)
+			return ec.marshalNUser2ᚖgithubᚗcomᚋexampleᚋpaymentᚑfederationᚋinternalᚋappᚋgraphᚋmodelᚐUser(ctx, selections, v)
 		},
 		true,
 		true,
@@ -1422,7 +1422,7 @@ func (ec *executionContext) _Mutation_updateUser(ctx context.Context, field grap
 		},
 		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v *model.User) graphql.Marshaler {
-			return ec.marshalNUser2ᚖgithubᚗcomᚋexampleᚋpaymentᚑfederationᚋinternalᚋinterfacesᚋgraphᚋmodelᚐUser(ctx, selections, v)
+			return ec.marshalNUser2ᚖgithubᚗcomᚋexampleᚋpaymentᚑfederationᚋinternalᚋappᚋgraphᚋmodelᚐUser(ctx, selections, v)
 		},
 		true,
 		true,
@@ -1580,7 +1580,7 @@ func (ec *executionContext) _Order_customer(ctx context.Context, field graphql.C
 		},
 		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v *model.User) graphql.Marshaler {
-			return ec.marshalNUser2ᚖgithubᚗcomᚋexampleᚋpaymentᚑfederationᚋinternalᚋinterfacesᚋgraphᚋmodelᚐUser(ctx, selections, v)
+			return ec.marshalNUser2ᚖgithubᚗcomᚋexampleᚋpaymentᚑfederationᚋinternalᚋappᚋgraphᚋmodelᚐUser(ctx, selections, v)
 		},
 		true,
 		true,
@@ -1774,7 +1774,7 @@ func (ec *executionContext) _Query_payment(ctx context.Context, field graphql.Co
 		},
 		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v *model.Payment) graphql.Marshaler {
-			return ec.marshalOPayment2ᚖgithubᚗcomᚋexampleᚋpaymentᚑfederationᚋinternalᚋinterfacesᚋgraphᚋmodelᚐPayment(ctx, selections, v)
+			return ec.marshalOPayment2ᚖgithubᚗcomᚋexampleᚋpaymentᚑfederationᚋinternalᚋappᚋgraphᚋmodelᚐPayment(ctx, selections, v)
 		},
 		true,
 		false,
@@ -1818,7 +1818,7 @@ func (ec *executionContext) _Query_order(ctx context.Context, field graphql.Coll
 		},
 		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v *model.Order) graphql.Marshaler {
-			return ec.marshalOOrder2ᚖgithubᚗcomᚋexampleᚋpaymentᚑfederationᚋinternalᚋinterfacesᚋgraphᚋmodelᚐOrder(ctx, selections, v)
+			return ec.marshalOOrder2ᚖgithubᚗcomᚋexampleᚋpaymentᚑfederationᚋinternalᚋappᚋgraphᚋmodelᚐOrder(ctx, selections, v)
 		},
 		true,
 		false,
@@ -1862,7 +1862,7 @@ func (ec *executionContext) _Query_user(ctx context.Context, field graphql.Colle
 		},
 		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v *model.User) graphql.Marshaler {
-			return ec.marshalOUser2ᚖgithubᚗcomᚋexampleᚋpaymentᚑfederationᚋinternalᚋinterfacesᚋgraphᚋmodelᚐUser(ctx, selections, v)
+			return ec.marshalOUser2ᚖgithubᚗcomᚋexampleᚋpaymentᚑfederationᚋinternalᚋappᚋgraphᚋmodelᚐUser(ctx, selections, v)
 		},
 		true,
 		false,
@@ -1905,7 +1905,7 @@ func (ec *executionContext) _Query_users(ctx context.Context, field graphql.Coll
 		},
 		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v []*model.User) graphql.Marshaler {
-			return ec.marshalNUser2ᚕᚖgithubᚗcomᚋexampleᚋpaymentᚑfederationᚋinternalᚋinterfacesᚋgraphᚋmodelᚐUserᚄ(ctx, selections, v)
+			return ec.marshalNUser2ᚕᚖgithubᚗcomᚋexampleᚋpaymentᚑfederationᚋinternalᚋappᚋgraphᚋmodelᚐUserᚄ(ctx, selections, v)
 		},
 		true,
 		true,
@@ -4755,12 +4755,12 @@ func (ec *executionContext) marshalNBoolean2bool(ctx context.Context, sel ast.Se
 	return res
 }
 
-func (ec *executionContext) unmarshalNCreateOrderInput2githubᚗcomᚋexampleᚋpaymentᚑfederationᚋinternalᚋinterfacesᚋgraphᚋmodelᚐCreateOrderInput(ctx context.Context, v any) (model.CreateOrderInput, error) {
+func (ec *executionContext) unmarshalNCreateOrderInput2githubᚗcomᚋexampleᚋpaymentᚑfederationᚋinternalᚋappᚋgraphᚋmodelᚐCreateOrderInput(ctx context.Context, v any) (model.CreateOrderInput, error) {
 	res, err := ec.unmarshalInputCreateOrderInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) unmarshalNCreateUserInput2githubᚗcomᚋexampleᚋpaymentᚑfederationᚋinternalᚋinterfacesᚋgraphᚋmodelᚐCreateUserInput(ctx context.Context, v any) (model.CreateUserInput, error) {
+func (ec *executionContext) unmarshalNCreateUserInput2githubᚗcomᚋexampleᚋpaymentᚑfederationᚋinternalᚋappᚋgraphᚋmodelᚐCreateUserInput(ctx context.Context, v any) (model.CreateUserInput, error) {
 	res, err := ec.unmarshalInputCreateUserInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
@@ -4813,11 +4813,11 @@ func (ec *executionContext) marshalNInt2int64(ctx context.Context, sel ast.Selec
 	return res
 }
 
-func (ec *executionContext) marshalNOrder2githubᚗcomᚋexampleᚋpaymentᚑfederationᚋinternalᚋinterfacesᚋgraphᚋmodelᚐOrder(ctx context.Context, sel ast.SelectionSet, v model.Order) graphql.Marshaler {
+func (ec *executionContext) marshalNOrder2githubᚗcomᚋexampleᚋpaymentᚑfederationᚋinternalᚋappᚋgraphᚋmodelᚐOrder(ctx context.Context, sel ast.SelectionSet, v model.Order) graphql.Marshaler {
 	return ec._Order(ctx, sel, &v)
 }
 
-func (ec *executionContext) marshalNOrder2ᚖgithubᚗcomᚋexampleᚋpaymentᚑfederationᚋinternalᚋinterfacesᚋgraphᚋmodelᚐOrder(ctx context.Context, sel ast.SelectionSet, v *model.Order) graphql.Marshaler {
+func (ec *executionContext) marshalNOrder2ᚖgithubᚗcomᚋexampleᚋpaymentᚑfederationᚋinternalᚋappᚋgraphᚋmodelᚐOrder(ctx context.Context, sel ast.SelectionSet, v *model.Order) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
@@ -4827,11 +4827,11 @@ func (ec *executionContext) marshalNOrder2ᚖgithubᚗcomᚋexampleᚋpaymentᚑ
 	return ec._Order(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalNPayment2githubᚗcomᚋexampleᚋpaymentᚑfederationᚋinternalᚋinterfacesᚋgraphᚋmodelᚐPayment(ctx context.Context, sel ast.SelectionSet, v model.Payment) graphql.Marshaler {
+func (ec *executionContext) marshalNPayment2githubᚗcomᚋexampleᚋpaymentᚑfederationᚋinternalᚋappᚋgraphᚋmodelᚐPayment(ctx context.Context, sel ast.SelectionSet, v model.Payment) graphql.Marshaler {
 	return ec._Payment(ctx, sel, &v)
 }
 
-func (ec *executionContext) marshalNPayment2ᚖgithubᚗcomᚋexampleᚋpaymentᚑfederationᚋinternalᚋinterfacesᚋgraphᚋmodelᚐPayment(ctx context.Context, sel ast.SelectionSet, v *model.Payment) graphql.Marshaler {
+func (ec *executionContext) marshalNPayment2ᚖgithubᚗcomᚋexampleᚋpaymentᚑfederationᚋinternalᚋappᚋgraphᚋmodelᚐPayment(ctx context.Context, sel ast.SelectionSet, v *model.Payment) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
@@ -4841,12 +4841,12 @@ func (ec *executionContext) marshalNPayment2ᚖgithubᚗcomᚋexampleᚋpayment�
 	return ec._Payment(ctx, sel, v)
 }
 
-func (ec *executionContext) unmarshalNProcessPaymentInput2githubᚗcomᚋexampleᚋpaymentᚑfederationᚋinternalᚋinterfacesᚋgraphᚋmodelᚐProcessPaymentInput(ctx context.Context, v any) (model.ProcessPaymentInput, error) {
+func (ec *executionContext) unmarshalNProcessPaymentInput2githubᚗcomᚋexampleᚋpaymentᚑfederationᚋinternalᚋappᚋgraphᚋmodelᚐProcessPaymentInput(ctx context.Context, v any) (model.ProcessPaymentInput, error) {
 	res, err := ec.unmarshalInputProcessPaymentInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) unmarshalNRefundPaymentInput2githubᚗcomᚋexampleᚋpaymentᚑfederationᚋinternalᚋinterfacesᚋgraphᚋmodelᚐRefundPaymentInput(ctx context.Context, v any) (model.RefundPaymentInput, error) {
+func (ec *executionContext) unmarshalNRefundPaymentInput2githubᚗcomᚋexampleᚋpaymentᚑfederationᚋinternalᚋappᚋgraphᚋmodelᚐRefundPaymentInput(ctx context.Context, v any) (model.RefundPaymentInput, error) {
 	res, err := ec.unmarshalInputRefundPaymentInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
@@ -4867,20 +4867,20 @@ func (ec *executionContext) marshalNString2string(ctx context.Context, sel ast.S
 	return res
 }
 
-func (ec *executionContext) unmarshalNUpdateUserInput2githubᚗcomᚋexampleᚋpaymentᚑfederationᚋinternalᚋinterfacesᚋgraphᚋmodelᚐUpdateUserInput(ctx context.Context, v any) (model.UpdateUserInput, error) {
+func (ec *executionContext) unmarshalNUpdateUserInput2githubᚗcomᚋexampleᚋpaymentᚑfederationᚋinternalᚋappᚋgraphᚋmodelᚐUpdateUserInput(ctx context.Context, v any) (model.UpdateUserInput, error) {
 	res, err := ec.unmarshalInputUpdateUserInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalNUser2githubᚗcomᚋexampleᚋpaymentᚑfederationᚋinternalᚋinterfacesᚋgraphᚋmodelᚐUser(ctx context.Context, sel ast.SelectionSet, v model.User) graphql.Marshaler {
+func (ec *executionContext) marshalNUser2githubᚗcomᚋexampleᚋpaymentᚑfederationᚋinternalᚋappᚋgraphᚋmodelᚐUser(ctx context.Context, sel ast.SelectionSet, v model.User) graphql.Marshaler {
 	return ec._User(ctx, sel, &v)
 }
 
-func (ec *executionContext) marshalNUser2ᚕᚖgithubᚗcomᚋexampleᚋpaymentᚑfederationᚋinternalᚋinterfacesᚋgraphᚋmodelᚐUserᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.User) graphql.Marshaler {
+func (ec *executionContext) marshalNUser2ᚕᚖgithubᚗcomᚋexampleᚋpaymentᚑfederationᚋinternalᚋappᚋgraphᚋmodelᚐUserᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.User) graphql.Marshaler {
 	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
 		fc := graphql.GetFieldContext(ctx)
 		fc.Result = &v[i]
-		return ec.marshalNUser2ᚖgithubᚗcomᚋexampleᚋpaymentᚑfederationᚋinternalᚋinterfacesᚋgraphᚋmodelᚐUser(ctx, sel, v[i])
+		return ec.marshalNUser2ᚖgithubᚗcomᚋexampleᚋpaymentᚑfederationᚋinternalᚋappᚋgraphᚋmodelᚐUser(ctx, sel, v[i])
 	})
 
 	for _, e := range ret {
@@ -4892,7 +4892,7 @@ func (ec *executionContext) marshalNUser2ᚕᚖgithubᚗcomᚋexampleᚋpayment�
 	return ret
 }
 
-func (ec *executionContext) marshalNUser2ᚖgithubᚗcomᚋexampleᚋpaymentᚑfederationᚋinternalᚋinterfacesᚋgraphᚋmodelᚐUser(ctx context.Context, sel ast.SelectionSet, v *model.User) graphql.Marshaler {
+func (ec *executionContext) marshalNUser2ᚖgithubᚗcomᚋexampleᚋpaymentᚑfederationᚋinternalᚋappᚋgraphᚋmodelᚐUser(ctx context.Context, sel ast.SelectionSet, v *model.User) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
@@ -5291,14 +5291,14 @@ func (ec *executionContext) marshalOBoolean2ᚖbool(ctx context.Context, sel ast
 	return res
 }
 
-func (ec *executionContext) marshalOOrder2ᚖgithubᚗcomᚋexampleᚋpaymentᚑfederationᚋinternalᚋinterfacesᚋgraphᚋmodelᚐOrder(ctx context.Context, sel ast.SelectionSet, v *model.Order) graphql.Marshaler {
+func (ec *executionContext) marshalOOrder2ᚖgithubᚗcomᚋexampleᚋpaymentᚑfederationᚋinternalᚋappᚋgraphᚋmodelᚐOrder(ctx context.Context, sel ast.SelectionSet, v *model.Order) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
 	}
 	return ec._Order(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalOPayment2ᚖgithubᚗcomᚋexampleᚋpaymentᚑfederationᚋinternalᚋinterfacesᚋgraphᚋmodelᚐPayment(ctx context.Context, sel ast.SelectionSet, v *model.Payment) graphql.Marshaler {
+func (ec *executionContext) marshalOPayment2ᚖgithubᚗcomᚋexampleᚋpaymentᚑfederationᚋinternalᚋappᚋgraphᚋmodelᚐPayment(ctx context.Context, sel ast.SelectionSet, v *model.Payment) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
 	}
@@ -5371,7 +5371,7 @@ func (ec *executionContext) marshalOString2ᚖstring(ctx context.Context, sel as
 	return res
 }
 
-func (ec *executionContext) marshalOUser2ᚖgithubᚗcomᚋexampleᚋpaymentᚑfederationᚋinternalᚋinterfacesᚋgraphᚋmodelᚐUser(ctx context.Context, sel ast.SelectionSet, v *model.User) graphql.Marshaler {
+func (ec *executionContext) marshalOUser2ᚖgithubᚗcomᚋexampleᚋpaymentᚑfederationᚋinternalᚋappᚋgraphᚋmodelᚐUser(ctx context.Context, sel ast.SelectionSet, v *model.User) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
 	}

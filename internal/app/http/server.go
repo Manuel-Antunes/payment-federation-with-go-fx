@@ -7,8 +7,8 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/adaptor"
 	"github.com/gofiber/fiber/v2/middleware/recover"
 
-	"github.com/example/payment-federation/internal/interfaces/graph"
-	"github.com/example/payment-federation/internal/interfaces/graph/dataloader"
+	"github.com/example/payment-federation/internal/app/graph"
+	"github.com/example/payment-federation/internal/app/graph/dataloader"
 	"github.com/example/payment-federation/internal/payments/infrastructure/gateway"
 )
 

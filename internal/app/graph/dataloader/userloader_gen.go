@@ -6,13 +6,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/example/payment-federation/internal/interfaces/graph/model"
+	"github.com/example/payment-federation/internal/app/graph/model"
 )
 
-// OrderLoaderConfig captures the config to create a new OrderLoader
-type OrderLoaderConfig struct {
+// UserLoaderConfig captures the config to create a new UserLoader
+type UserLoaderConfig struct {
 	// Fetch is a method that provides the data for the loader
-	Fetch func(keys []string) ([]*model.Order, []error)
+	Fetch func(keys []string) ([]*model.User, []error)
 
 	// Wait is how long wait before sending a batch
 	Wait time.Duration
@@ -21,19 +21,19 @@ type OrderLoaderConfig struct {
 	MaxBatch int
 }
 
-// NewOrderLoader creates a new OrderLoader given a fetch, wait, and maxBatch
-func NewOrderLoader(config OrderLoaderConfig) *OrderLoader {
-	return &OrderLoader{
+// NewUserLoader creates a new UserLoader given a fetch, wait, and maxBatch
+func NewUserLoader(config UserLoaderConfig) *UserLoader {
+	return &UserLoader{
 		fetch:    config.Fetch,
 		wait:     config.Wait,
 		maxBatch: config.MaxBatch,
 	}
 }
 
-// OrderLoader batches and caches requests
-type OrderLoader struct {
+// UserLoader batches and caches requests
+type UserLoader struct {
 	// this method provides the data for the loader
-	fetch func(keys []string) ([]*model.Order, []error)
+	fetch func(keys []string) ([]*model.User, []error)
 
 	// how long to done before sending a batch
 	wait time.Duration
@@ -44,51 +44,51 @@ type OrderLoader struct {
 	// INTERNAL
 
 	// lazily created cache
-	cache map[string]*model.Order
+	cache map[string]*model.User
 
 	// the current batch. keys will continue to be collected until timeout is hit,
 	// then everything will be sent to the fetch method and out to the listeners
-	batch *orderLoaderBatch
+	batch *userLoaderBatch
 
 	// mutex to prevent races
 	mu sync.Mutex
 }
 
-type orderLoaderBatch struct {
+type userLoaderBatch struct {
 	keys    []string
-	data    []*model.Order
+	data    []*model.User
 	error   []error
 	closing bool
 	done    chan struct{}
 }
 
-// Load a Order by key, batching and caching will be applied automatically
-func (l *OrderLoader) Load(key string) (*model.Order, error) {
+// Load a User by key, batching and caching will be applied automatically
+func (l *UserLoader) Load(key string) (*model.User, error) {
 	return l.LoadThunk(key)()
 }
 
-// LoadThunk returns a function that when called will block waiting for a Order.
+// LoadThunk returns a function that when called will block waiting for a User.
 // This method should be used if you want one goroutine to make requests to many
 // different data loaders without blocking until the thunk is called.
-func (l *OrderLoader) LoadThunk(key string) func() (*model.Order, error) {
+func (l *UserLoader) LoadThunk(key string) func() (*model.User, error) {
 	l.mu.Lock()
 	if it, ok := l.cache[key]; ok {
 		l.mu.Unlock()
-		return func() (*model.Order, error) {
+		return func() (*model.User, error) {
 			return it, nil
 		}
 	}
 	if l.batch == nil {
-		l.batch = &orderLoaderBatch{done: make(chan struct{})}
+		l.batch = &userLoaderBatch{done: make(chan struct{})}
 	}
 	batch := l.batch
 	pos := batch.keyIndex(l, key)
 	l.mu.Unlock()
 
-	return func() (*model.Order, error) {
+	return func() (*model.User, error) {
 		<-batch.done
 
-		var data *model.Order
+		var data *model.User
 		if pos < len(batch.data) {
 			data = batch.data[pos]
 		}
@@ -113,43 +113,43 @@ func (l *OrderLoader) LoadThunk(key string) func() (*model.Order, error) {
 
 // LoadAll fetches many keys at once. It will be broken into appropriate sized
 // sub batches depending on how the loader is configured
-func (l *OrderLoader) LoadAll(keys []string) ([]*model.Order, []error) {
-	results := make([]func() (*model.Order, error), len(keys))
+func (l *UserLoader) LoadAll(keys []string) ([]*model.User, []error) {
+	results := make([]func() (*model.User, error), len(keys))
 
 	for i, key := range keys {
 		results[i] = l.LoadThunk(key)
 	}
 
-	orders := make([]*model.Order, len(keys))
+	users := make([]*model.User, len(keys))
 	errors := make([]error, len(keys))
 	for i, thunk := range results {
-		orders[i], errors[i] = thunk()
+		users[i], errors[i] = thunk()
 	}
-	return orders, errors
+	return users, errors
 }
 
-// LoadAllThunk returns a function that when called will block waiting for a Orders.
+// LoadAllThunk returns a function that when called will block waiting for a Users.
 // This method should be used if you want one goroutine to make requests to many
 // different data loaders without blocking until the thunk is called.
-func (l *OrderLoader) LoadAllThunk(keys []string) func() ([]*model.Order, []error) {
-	results := make([]func() (*model.Order, error), len(keys))
+func (l *UserLoader) LoadAllThunk(keys []string) func() ([]*model.User, []error) {
+	results := make([]func() (*model.User, error), len(keys))
 	for i, key := range keys {
 		results[i] = l.LoadThunk(key)
 	}
-	return func() ([]*model.Order, []error) {
-		orders := make([]*model.Order, len(keys))
+	return func() ([]*model.User, []error) {
+		users := make([]*model.User, len(keys))
 		errors := make([]error, len(keys))
 		for i, thunk := range results {
-			orders[i], errors[i] = thunk()
+			users[i], errors[i] = thunk()
 		}
-		return orders, errors
+		return users, errors
 	}
 }
 
 // Prime the cache with the provided key and value. If the key already exists, no change is made
 // and false is returned.
 // (To forcefully prime the cache, clear the key first with loader.clear(key).prime(key, value).)
-func (l *OrderLoader) Prime(key string, value *model.Order) bool {
+func (l *UserLoader) Prime(key string, value *model.User) bool {
 	l.mu.Lock()
 	var found bool
 	if _, found = l.cache[key]; !found {
@@ -163,22 +163,22 @@ func (l *OrderLoader) Prime(key string, value *model.Order) bool {
 }
 
 // Clear the value at key from the cache, if it exists
-func (l *OrderLoader) Clear(key string) {
+func (l *UserLoader) Clear(key string) {
 	l.mu.Lock()
 	delete(l.cache, key)
 	l.mu.Unlock()
 }
 
-func (l *OrderLoader) unsafeSet(key string, value *model.Order) {
+func (l *UserLoader) unsafeSet(key string, value *model.User) {
 	if l.cache == nil {
-		l.cache = map[string]*model.Order{}
+		l.cache = map[string]*model.User{}
 	}
 	l.cache[key] = value
 }
 
 // keyIndex will return the location of the key in the batch, if its not found
 // it will add the key to the batch
-func (b *orderLoaderBatch) keyIndex(l *OrderLoader, key string) int {
+func (b *userLoaderBatch) keyIndex(l *UserLoader, key string) int {
 	for i, existingKey := range b.keys {
 		if key == existingKey {
 			return i
@@ -202,7 +202,7 @@ func (b *orderLoaderBatch) keyIndex(l *OrderLoader, key string) int {
 	return pos
 }
 
-func (b *orderLoaderBatch) startTimer(l *OrderLoader) {
+func (b *userLoaderBatch) startTimer(l *UserLoader) {
 	time.Sleep(l.wait)
 	l.mu.Lock()
 
@@ -218,7 +218,7 @@ func (b *orderLoaderBatch) startTimer(l *OrderLoader) {
 	b.end(l)
 }
 
-func (b *orderLoaderBatch) end(l *OrderLoader) {
+func (b *userLoaderBatch) end(l *UserLoader) {
 	b.data, b.error = l.fetch(b.keys)
 	close(b.done)
 }

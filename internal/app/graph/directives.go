@@ -11,7 +11,7 @@ import (
 	"github.com/go-playground/validator/v10"
 	nonstd "github.com/go-playground/validator/v10/non-standard/validators"
 
-	"github.com/example/payment-federation/internal/interfaces/graph/generated"
+	"github.com/example/payment-federation/internal/app/graph/generated"
 )
 
 // validate é a instância (concorrente-segura) do go-playground/validator usada

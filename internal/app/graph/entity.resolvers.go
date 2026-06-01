@@ -8,9 +8,9 @@ package graph
 import (
 	"context"
 
-	"github.com/example/payment-federation/internal/interfaces/graph/dataloader"
-	"github.com/example/payment-federation/internal/interfaces/graph/generated"
-	"github.com/example/payment-federation/internal/interfaces/graph/model"
+	"github.com/example/payment-federation/internal/app/graph/dataloader"
+	"github.com/example/payment-federation/internal/app/graph/generated"
+	"github.com/example/payment-federation/internal/app/graph/model"
 )
 
 // FindOrderByID is the resolver for the findOrderByID field. Via DataLoader: o
