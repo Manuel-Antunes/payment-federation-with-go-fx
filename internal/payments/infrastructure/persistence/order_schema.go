@@ -32,7 +32,7 @@ func (orderSchema) toCreate(client *entx.Client, o *order.Order) *entx.OrderCrea
 	s := o.ToSnapshot()
 	return client.Order.Create().
 		SetID(s.ID).
-		SetIdempotencyKey(s.IdempotencyKey).
+		SetNillableIdempotencyKey(s.IdempotencyKey).
 		SetCustomerID(s.CustomerID).
 		SetAmountCents(s.AmountCents).
 		SetCurrency(s.Currency).

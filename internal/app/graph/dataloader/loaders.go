@@ -28,24 +28,35 @@ type Middleware func(http.Handler) http.Handler
 
 type ctxKey struct{}
 
+// NewLoaders cria um conjunto fresco de loaders (cache vazio). Use por
+// requisição/operação — o cache do loader é por-escopo.
+func NewLoaders(queries *cqrs.QueryBus) *Loaders {
+	return &Loaders{
+		UserByID: NewUserLoader(UserLoaderConfig{
+			Wait:     2 * time.Millisecond,
+			MaxBatch: 100,
+			Fetch:    fetchUsers(queries),
+		}),
+		OrderByID: NewOrderLoader(OrderLoaderConfig{
+			Wait:     2 * time.Millisecond,
+			MaxBatch: 100,
+			Fetch:    fetchOrders(queries),
+		}),
+	}
+}
+
+// Attach coloca os loaders no contexto (usado tanto pelo middleware HTTP quanto
+// pelo handler de subscriptions via WebSocket).
+func Attach(ctx context.Context, loaders *Loaders) context.Context {
+	return context.WithValue(ctx, ctxKey{}, loaders)
+}
+
 // NewMiddleware devolve um middleware que, a CADA requisição, cria um conjunto
 // fresco de loaders (cache vazio) e o coloca no contexto.
 func NewMiddleware(queries *cqrs.QueryBus) Middleware {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			loaders := &Loaders{
-				UserByID: NewUserLoader(UserLoaderConfig{
-					Wait:     2 * time.Millisecond,
-					MaxBatch: 100,
-					Fetch:    fetchUsers(queries),
-				}),
-				OrderByID: NewOrderLoader(OrderLoaderConfig{
-					Wait:     2 * time.Millisecond,
-					MaxBatch: 100,
-					Fetch:    fetchOrders(queries),
-				}),
-			}
-			ctx := context.WithValue(r.Context(), ctxKey{}, loaders)
+			ctx := Attach(r.Context(), NewLoaders(queries))
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}

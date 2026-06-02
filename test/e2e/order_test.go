@@ -18,15 +18,16 @@ func TestOrderRequiresExistingCustomer(t *testing.T) {
 
 // TestOrderTriggersPaymentSaga valida a saga pedido->pagamento ATRAVÉS da API
 // pública: ao criar um pedido, um pagamento é processado automaticamente usando
-// o id do pedido como chave de idempotência. Como não há query de pagamento por
-// chave, observamos via REPLAY idempotente: um processPayment com a chave ==
-// id-do-pedido (e dados propositalmente diferentes) deve devolver o pagamento
-// JÁ criado pela saga — com o cliente e o valor do PEDIDO, não os enviados aqui.
+// a CHAVE DE IDEMPOTÊNCIA do pedido (a custom fornecida — aqui "ord-saga-1").
+// Observamos via REPLAY idempotente: um processPayment com a MESMA chave (e
+// dados propositalmente diferentes) deve devolver o pagamento JÁ criado pela
+// saga — com o cliente e o valor do PEDIDO, não os enviados aqui.
 func TestOrderTriggersPaymentSaga(t *testing.T) {
 	e := newE2E(t)
 
 	customer := e.createUser("Grace", "grace@example.com")
 
+	const orderKey = "ord-saga-1"
 	var co struct {
 		CreateOrder struct {
 			ID          string `json:"id"`
@@ -38,7 +39,7 @@ func TestOrderTriggersPaymentSaga(t *testing.T) {
 	e.mustQuery(`mutation($in: CreateOrderInput!){
   createOrder(input:$in){ id customerId amountCents status }
 }`, map[string]any{"in": map[string]any{
-		"idempotencyKey": "ord-saga-1",
+		"idempotencyKey": orderKey,
 		"customerId":     customer,
 		"amountCents":    7700,
 		"currency":       "BRL",
@@ -47,9 +48,9 @@ func TestOrderTriggersPaymentSaga(t *testing.T) {
 		t.Fatalf("unexpected order: %+v", co.CreateOrder)
 	}
 
-	// Replay: a chave do pagamento da saga é o ID do pedido.
+	// Replay: a chave do pagamento da saga é a chave de idempotência do pedido.
 	replay := e.processPayment(map[string]any{
-		"idempotencyKey": co.CreateOrder.ID,
+		"idempotencyKey": orderKey,
 		"customerId":     "someone-else", // ignorado: pagamento já existe
 		"amountCents":    1,              // ignorado
 		"currency":       "BRL",
@@ -62,6 +63,47 @@ func TestOrderTriggersPaymentSaga(t *testing.T) {
 	}
 	if replay.AmountCents != 7700 {
 		t.Fatalf("saga payment amount mismatch: got %d want 7700 (proves saga, not this call, created it)", replay.AmountCents)
+	}
+}
+
+// TestOrderWithoutIdempotencyKeyUsesOrderID prova o caminho da chave NULA: quando
+// o cliente NÃO informa idempotencyKey, a chave efetiva do pedido passa a ser o
+// próprio id — e a saga cria o pagamento com essa chave (== id do pedido). O
+// replay com o id do pedido devolve o pagamento já criado pela saga.
+func TestOrderWithoutIdempotencyKeyUsesOrderID(t *testing.T) {
+	e := newE2E(t)
+
+	customer := e.createUser("Ada", "ada@example.com")
+
+	var co struct {
+		CreateOrder struct {
+			ID          string `json:"id"`
+			AmountCents int64  `json:"amountCents"`
+		} `json:"createOrder"`
+	}
+	// Sem idempotencyKey no input (campo é opcional no schema).
+	e.mustQuery(`mutation($in: CreateOrderInput!){ createOrder(input:$in){ id amountCents } }`,
+		map[string]any{"in": map[string]any{
+			"customerId":  customer,
+			"amountCents": 5500,
+			"currency":    "BRL",
+		}}, &co)
+	if co.CreateOrder.ID == "" || co.CreateOrder.AmountCents != 5500 {
+		t.Fatalf("unexpected order: %+v", co.CreateOrder)
+	}
+
+	// Sem chave custom, a chave do pagamento da saga é o id do pedido.
+	replay := e.processPayment(map[string]any{
+		"idempotencyKey": co.CreateOrder.ID,
+		"customerId":     "someone-else", // ignorado: pagamento já existe
+		"amountCents":    1,              // ignorado
+		"currency":       "BRL",
+	})
+	if replay.Status != "CAPTURED" {
+		t.Fatalf("saga payment should be CAPTURED, got %q", replay.Status)
+	}
+	if replay.CustomerID != customer || replay.AmountCents != 5500 {
+		t.Fatalf("saga payment mismatch: got customer=%q amount=%d, want %q/5500", replay.CustomerID, replay.AmountCents, customer)
 	}
 }
 

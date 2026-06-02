@@ -1,7 +1,8 @@
 package e2e
 
-// Utilitários de teste e2e: sobe uma instância isolada do app (net/http + gqlgen
-// + fx) por teste, ligada a um banco Postgres próprio (criado/migrado/dropado
+// Utilitários de teste e2e: sobe uma instância isolada do app (Fiber + gqlgen +
+// fx) por teste, num listener TCP real (preciso para o WebSocket das
+// subscriptions), ligada a um banco Postgres próprio (criado/migrado/dropado
 // pelo harness), e expõe helpers de transporte GraphQL/HTTP + fixtures.
 
 import (
@@ -11,12 +12,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
-	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/gofiber/fiber/v2"
 	"go.uber.org/fx"
 	"go.uber.org/fx/fxevent"
 	"go.uber.org/zap"
@@ -27,13 +29,15 @@ import (
 
 type e2e struct {
 	t        *testing.T
-	handler  http.Handler
+	app      *fiber.App      // testado em memória via app.Test (HTTP)
 	resolver *graph.Resolver // exposto p/ testar subscriptions sem websocket
 }
 
 // newE2E cria um BANCO novo no container compartilhado, sobe uma instância
 // isolada do app conectada a ele (a migração roda no Start do fx) e registra o
-// teardown (stop do app + close + DROP DATABASE) via t.Cleanup.
+// teardown (stop do app + close + DROP DATABASE) via t.Cleanup. As requisições
+// HTTP rodam em memória (app.Test) — sem bind de porta; o WebSocket usa um
+// listener real, criado sob demanda por serveWS.
 func newE2E(t *testing.T) *e2e {
 	t.Helper()
 
@@ -47,14 +51,14 @@ func newE2E(t *testing.T) *e2e {
 		t.Fatalf("open db %s: %v", dbName, err)
 	}
 
-	var handler http.Handler
+	var fiberApp *fiber.App
 	var resolver *graph.Resolver
 	fxApp := fx.New(
 		fx.Provide(func() *zap.Logger { return zap.NewNop() }),
 		fx.WithLogger(func() fxevent.Logger { return fxevent.NopLogger }),
 		fx.Supply(db), // injeta o *sql.DB do teste; os clients ent migram no Start
 		app.Module,
-		fx.Populate(&handler, &resolver),
+		fx.Populate(&fiberApp, &resolver),
 	)
 
 	startCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -73,7 +77,38 @@ func newE2E(t *testing.T) *e2e {
 		dropDatabase(dbName)
 	})
 
-	return &e2e{t: t, handler: handler, resolver: resolver}
+	return &e2e{t: t, app: fiberApp, resolver: resolver}
+}
+
+// serveWS sobe um listener TCP real e serve o Fiber nele, devolvendo o baseURL.
+// Necessário só para o WebSocket (subscriptions): o app.Test é em memória e não
+// expõe uma conexão dialável para o upgrade WS. O shutdown é registrado no
+// t.Cleanup.
+func (e *e2e) serveWS() string {
+	e.t.Helper()
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		e.t.Fatalf("listen: %v", err)
+	}
+	go func() { _ = e.app.Listener(ln) }()
+
+	base := "http://" + ln.Addr().String()
+	deadline := time.Now().Add(3 * time.Second)
+	for time.Now().Before(deadline) {
+		resp, derr := http.Get(base + "/")
+		if derr == nil {
+			_ = resp.Body.Close()
+			break
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+
+	e.t.Cleanup(func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		_ = e.app.ShutdownWithContext(ctx)
+	})
+	return base
 }
 
 // --- transporte GraphQL / HTTP ----------------------------------------------
@@ -109,12 +144,16 @@ func (e *e2e) query(operation string, variables map[string]any) gqlResponse {
 		e.t.Fatalf("marshal request: %v", err)
 	}
 
-	req := httptest.NewRequest(http.MethodPost, "/query", bytes.NewReader(body))
+	req, err := http.NewRequest(http.MethodPost, "/query", bytes.NewReader(body))
+	if err != nil {
+		e.t.Fatalf("new request: %v", err)
+	}
 	req.Header.Set("Content-Type", "application/json")
 
-	rec := httptest.NewRecorder()
-	e.handler.ServeHTTP(rec, req)
-	resp := rec.Result()
+	resp, err := e.app.Test(req, -1) // -1: sem timeout (espera o handler completar)
+	if err != nil {
+		e.t.Fatalf("app.Test query: %v", err)
+	}
 	defer resp.Body.Close()
 
 	raw, err := io.ReadAll(resp.Body)
@@ -164,13 +203,17 @@ func (e *e2e) httpJSON(method, path, body string) (int, string) {
 	if body != "" {
 		r = strings.NewReader(body)
 	}
-	req := httptest.NewRequest(method, path, r)
+	req, err := http.NewRequest(method, path, r)
+	if err != nil {
+		e.t.Fatalf("new request: %v", err)
+	}
 	if body != "" {
 		req.Header.Set("Content-Type", "application/json")
 	}
-	rec := httptest.NewRecorder()
-	e.handler.ServeHTTP(rec, req)
-	resp := rec.Result()
+	resp, err := e.app.Test(req, -1)
+	if err != nil {
+		e.t.Fatalf("app.Test: %v", err)
+	}
 	defer resp.Body.Close()
 	raw, _ := io.ReadAll(resp.Body)
 	return resp.StatusCode, string(raw)

@@ -55,8 +55,18 @@ func (r *OrderEntRepository) FindByIDs(ctx context.Context, ids []order.OrderID)
 	return out, nil
 }
 
+// FindByIdempotencyKey resolve o pedido pela sua chave EFETIVA: encontra pela
+// idempotency_key (quando o cliente forneceu uma) OU pelo próprio id (quando não
+// forneceu — a chave efetiva passa a ser o id). Assim o mesmo lookup serve tanto
+// para a chave custom quanto para o id do pedido (read-after-write do createOrder
+// relê pelo id).
 func (r *OrderEntRepository) FindByIdempotencyKey(ctx context.Context, key string) (*order.Order, error) {
-	row, err := r.client.Order.Query().Where(entorder.IdempotencyKey(key)).Only(ctx)
+	row, err := r.client.Order.Query().
+		Where(entorder.Or(
+			entorder.IdempotencyKey(key),
+			entorder.ID(key),
+		)).
+		First(ctx)
 	if entx.IsNotFound(err) {
 		return nil, order.ErrNotFound
 	}

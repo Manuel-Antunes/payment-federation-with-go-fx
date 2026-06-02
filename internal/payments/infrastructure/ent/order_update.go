@@ -103,6 +103,9 @@ func (_u *OrderUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 			}
 		}
 	}
+	if _u.mutation.IdempotencyKeyCleared() {
+		_spec.ClearField(order.FieldIdempotencyKey, field.TypeString)
+	}
 	if value, ok := _u.mutation.Status(); ok {
 		_spec.SetField(order.FieldStatus, field.TypeString, value)
 	}
@@ -237,6 +240,9 @@ func (_u *OrderUpdateOne) sqlSave(ctx context.Context) (_node *Order, err error)
 				ps[i](selector)
 			}
 		}
+	}
+	if _u.mutation.IdempotencyKeyCleared() {
+		_spec.ClearField(order.FieldIdempotencyKey, field.TypeString)
 	}
 	if value, ok := _u.mutation.Status(); ok {
 		_spec.SetField(order.FieldStatus, field.TypeString, value)

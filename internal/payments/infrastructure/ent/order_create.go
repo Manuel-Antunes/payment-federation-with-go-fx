@@ -26,6 +26,14 @@ func (_c *OrderCreate) SetIdempotencyKey(v string) *OrderCreate {
 	return _c
 }
 
+// SetNillableIdempotencyKey sets the "idempotency_key" field if the given value is not nil.
+func (_c *OrderCreate) SetNillableIdempotencyKey(v *string) *OrderCreate {
+	if v != nil {
+		_c.SetIdempotencyKey(*v)
+	}
+	return _c
+}
+
 // SetCustomerID sets the "customer_id" field.
 func (_c *OrderCreate) SetCustomerID(v string) *OrderCreate {
 	_c.mutation.SetCustomerID(v)
@@ -102,14 +110,6 @@ func (_c *OrderCreate) ExecX(ctx context.Context) {
 
 // check runs all checks and user-defined validators on the builder.
 func (_c *OrderCreate) check() error {
-	if _, ok := _c.mutation.IdempotencyKey(); !ok {
-		return &ValidationError{Name: "idempotency_key", err: errors.New(`ent: missing required field "Order.idempotency_key"`)}
-	}
-	if v, ok := _c.mutation.IdempotencyKey(); ok {
-		if err := order.IdempotencyKeyValidator(v); err != nil {
-			return &ValidationError{Name: "idempotency_key", err: fmt.Errorf(`ent: validator failed for field "Order.idempotency_key": %w`, err)}
-		}
-	}
 	if _, ok := _c.mutation.CustomerID(); !ok {
 		return &ValidationError{Name: "customer_id", err: errors.New(`ent: missing required field "Order.customer_id"`)}
 	}
@@ -175,7 +175,7 @@ func (_c *OrderCreate) createSpec() (*Order, *sqlgraph.CreateSpec) {
 	}
 	if value, ok := _c.mutation.IdempotencyKey(); ok {
 		_spec.SetField(order.FieldIdempotencyKey, field.TypeString, value)
-		_node.IdempotencyKey = value
+		_node.IdempotencyKey = &value
 	}
 	if value, ok := _c.mutation.CustomerID(); ok {
 		_spec.SetField(order.FieldCustomerID, field.TypeString, value)

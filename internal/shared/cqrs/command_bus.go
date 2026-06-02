@@ -22,8 +22,8 @@ import (
 	"sync"
 
 	"github.com/ThreeDotsLabs/watermill"
-	"github.com/ThreeDotsLabs/watermill/message"
 	wmcqrs "github.com/ThreeDotsLabs/watermill/components/cqrs"
+	"github.com/ThreeDotsLabs/watermill/message"
 )
 
 // ---------------------------------------------------------------------------
@@ -143,11 +143,11 @@ func (b *CommandBus) Dispatch(ctx context.Context, cmd any) error {
 	return h(ctx, cmd)
 }
 
-// ExecuteMutationSync despacha o comando C pelo barramento do Watermill e devolve
+// ExecuteCommandSync despacha o comando C pelo barramento do Watermill e devolve
 // o resultado R produzido pelo handler — request-reply correlacionado por id,
 // entregue via canal. Para os casos em que a escrita realmente precisa retornar
 // dados. O context controla o timeout/cancelamento da espera.
-func ExecuteMutationSync[C any, R any](ctx context.Context, b *CommandBus, cmd C) (R, error) {
+func ExecuteCommandSync[C any, R any](ctx context.Context, b *CommandBus, cmd C) (R, error) {
 	var zero R
 
 	id := watermill.NewUUID()

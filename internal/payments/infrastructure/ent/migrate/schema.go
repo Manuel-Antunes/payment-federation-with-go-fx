@@ -11,7 +11,7 @@ var (
 	// OrdersColumns holds the columns for the "orders" table.
 	OrdersColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeString},
-		{Name: "idempotency_key", Type: field.TypeString, Unique: true},
+		{Name: "idempotency_key", Type: field.TypeString, Unique: true, Nullable: true},
 		{Name: "customer_id", Type: field.TypeString},
 		{Name: "amount_cents", Type: field.TypeInt64},
 		{Name: "currency", Type: field.TypeString},

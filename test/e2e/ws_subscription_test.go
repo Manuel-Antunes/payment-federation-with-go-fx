@@ -3,7 +3,6 @@ package e2e
 import (
 	"encoding/json"
 	"fmt"
-	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
@@ -13,16 +12,17 @@ import (
 
 // TestOnPaymentProcessedOverWebsocket prova o transporte de SUBSCRIPTION pela
 // REDE (WebSocket), falando o protocolo graphql-transport-ws — o mesmo que o
-// Playground usa. Só funciona porque o servidor agora é net/http (com
-// http.Hijacker), e não mais o adaptador fasthttp do Fiber.
+// Playground usa. Agora roda sobre o Fiber (fasthttp): o gqlgen não consegue
+// servir WS no fasthttp (precisa de http.Hijacker), então o servidor usa um
+// handler graphql-transport-ws próprio sobre o gofiber/contrib/websocket,
+// dirigindo o executor do gqlgen. O cliente abaixo é o gorilla (lado cliente é
+// agnóstico ao servidor).
 func TestOnPaymentProcessedOverWebsocket(t *testing.T) {
 	e := newE2E(t)
-
-	srv := httptest.NewServer(e.handler)
-	defer srv.Close()
+	baseURL := e.serveWS() // WS precisa de listener real (app.Test é em memória)
 
 	d := websocket.Dialer{Subprotocols: []string{"graphql-transport-ws"}}
-	conn, _, err := d.Dial("ws"+strings.TrimPrefix(srv.URL, "http")+"/query", nil)
+	conn, _, err := d.Dial("ws"+strings.TrimPrefix(baseURL, "http")+"/query", nil)
 	if err != nil {
 		t.Fatalf("dial websocket: %v", err)
 	}

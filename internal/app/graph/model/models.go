@@ -17,7 +17,7 @@ type Payment struct {
 func (Payment) IsEntity() {}
 
 type ProcessPaymentInput struct {
-	IdempotencyKey string  `json:"idempotencyKey"`
+	IdempotencyKey string  `json:"idempotencyKey,omitempty"`
 	CustomerID     string  `json:"customerId"`
 	AmountCents    int64   `json:"amountCents"`
 	Currency       string  `json:"currency"`
@@ -41,10 +41,10 @@ type Order struct {
 func (Order) IsEntity() {}
 
 type CreateOrderInput struct {
-	IdempotencyKey string `json:"idempotencyKey"`
-	CustomerID     string `json:"customerId"`
-	AmountCents    int64  `json:"amountCents"`
-	Currency       string `json:"currency"`
+	IdempotencyKey *string `json:"idempotencyKey,omitempty"`
+	CustomerID     string  `json:"customerId"`
+	AmountCents    int64   `json:"amountCents"`
+	Currency       string  `json:"currency"`
 }
 
 type User struct {

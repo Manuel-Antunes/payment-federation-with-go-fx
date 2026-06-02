@@ -1,12 +1,5 @@
 # Schema GraphQL FEDERADO (Apollo Federation v2 via gqlgen).
-#
-# A diretiva @key torna Payment uma "entity" resolvível por outros subgraphs
-# da federação. O gateway de federação (Apollo Router / Cosmo) consegue
-# montar este subgraph junto a outros (ex.: subgraph de Customer) e resolver
-# Payment.customer remotamente.
 
-extend schema
-  @link(url: "https://specs.apollo.dev/federation/v2.3", import: ["@key"])
 
 type Payment @key(fields: "id") {
   id: ID!
@@ -52,7 +45,7 @@ type Order @key(fields: "id") {
 
 input CreateOrderInput {
   "Chave de idempotência do pedido (mínimo 8 caracteres)."
-  idempotencyKey: String! @binding(constraint: "min=8,max=255")
+  idempotencyKey: String @binding(constraint: "min=8,max=255,required=false")
   "Cliente (id de um usuário existente)."
   customerId: ID! @binding(constraint: "required")
   amountCents: Int! @binding(constraint: "min=1")
@@ -81,3 +74,12 @@ type Subscription {
   """
   onPaymentProcessed(orderId: ID!): Payment!
 }
+
+#
+# A diretiva @key torna Payment uma "entity" resolvível por outros subgraphs
+# da federação. O gateway de federação (Apollo Router / Cosmo) consegue
+# montar este subgraph junto a outros (ex.: subgraph de Customer) e resolver
+# Payment.customer remotamente.
+
+extend schema
+  @link(url: "https://specs.apollo.dev/federation/v2.3", import: ["@key"])

@@ -18,7 +18,7 @@ type Order struct {
 	// ID of the ent.
 	ID string `json:"id,omitempty"`
 	// IdempotencyKey holds the value of the "idempotency_key" field.
-	IdempotencyKey string `json:"idempotency_key,omitempty"`
+	IdempotencyKey *string `json:"idempotency_key,omitempty"`
 	// CustomerID holds the value of the "customer_id" field.
 	CustomerID string `json:"customer_id,omitempty"`
 	// AmountCents holds the value of the "amount_cents" field.
@@ -70,7 +70,8 @@ func (_m *Order) assignValues(columns []string, values []any) error {
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field idempotency_key", values[i])
 			} else if value.Valid {
-				_m.IdempotencyKey = value.String
+				_m.IdempotencyKey = new(string)
+				*_m.IdempotencyKey = value.String
 			}
 		case order.FieldCustomerID:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -144,8 +145,10 @@ func (_m *Order) String() string {
 	var builder strings.Builder
 	builder.WriteString("Order(")
 	builder.WriteString(fmt.Sprintf("id=%v, ", _m.ID))
-	builder.WriteString("idempotency_key=")
-	builder.WriteString(_m.IdempotencyKey)
+	if v := _m.IdempotencyKey; v != nil {
+		builder.WriteString("idempotency_key=")
+		builder.WriteString(*v)
+	}
 	builder.WriteString(", ")
 	builder.WriteString("customer_id=")
 	builder.WriteString(_m.CustomerID)

@@ -76,7 +76,7 @@ func TestExecuteMutationSync_ReturnsResult(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	res, err := cqrs.ExecuteMutationSync[greet, greetResult](ctx, bus, greet{Name: "marvin"})
+	res, err := cqrs.ExecuteCommandSync[greet, greetResult](ctx, bus, greet{Name: "marvin"})
 	if err != nil {
 		t.Fatalf("ExecuteMutationSync: %v", err)
 	}
@@ -92,7 +92,7 @@ func TestExecuteMutationSync_PropagatesError(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	_, err := cqrs.ExecuteMutationSync[greet, greetResult](ctx, bus, greet{Name: "x"})
+	_, err := cqrs.ExecuteCommandSync[greet, greetResult](ctx, bus, greet{Name: "x"})
 	if !errors.Is(err, wantErr) {
 		t.Fatalf("esperava erro %v, veio %v", wantErr, err)
 	}

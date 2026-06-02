@@ -1,6 +1,9 @@
 package order
 
-import "github.com/example/payment-federation/internal/shared/domain"
+import (
+	"github.com/example/payment-federation/internal/payments/domain/payment"
+	"github.com/example/payment-federation/internal/shared/domain"
+)
 
 // OrderCreated embute domain.BaseEvent[OrderID] (id + instante) e só declara
 // EventName + seus campos próprios. Satisfaz domain.DomainEvent.
@@ -9,9 +12,10 @@ import "github.com/example/payment-federation/internal/shared/domain"
 // (saga de pagamento) precisa para iniciar o pagamento.
 type OrderCreated struct {
 	domain.BaseEvent[OrderID]
-	CustomerID  string
-	AmountCents int64
-	Currency    string
+	CustomerID     string
+	IdempotenceKey payment.IdempotencyKey
+	AmountCents    int64
+	Currency       string
 }
 
 func (OrderCreated) EventName() string { return "order.created" }

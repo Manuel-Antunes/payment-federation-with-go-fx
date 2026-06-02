@@ -13,7 +13,7 @@ type Order struct {
 func (Order) Fields() []ent.Field {
 	return []ent.Field{
 		field.String("id").NotEmpty().Immutable(),
-		field.String("idempotency_key").NotEmpty().Unique().Immutable(),
+		field.String("idempotency_key").Optional().Unique().Immutable().Nillable(),
 		field.String("customer_id").NotEmpty().Immutable(),
 		field.Int64("amount_cents").Immutable(),
 		field.String("currency").Immutable(),

@@ -50,10 +50,13 @@ type orderPaymentSaga struct {
 func (s orderPaymentSaga) Handle(ctx context.Context, evt *event.OrderIntegrationEvent) error {
 	s.log.Info("order_created_triggering_payment",
 		zap.String("order_id", evt.OrderID),
+		zap.String("idempotence_key", evt.IdempotenceKey),
 		zap.String("customer_id", evt.CustomerID),
 	)
+	// A chave de idempotência do pagamento é a chave EFETIVA do pedido (a custom
+	// fornecida pelo cliente ou, na ausência, o id do pedido).
 	return s.commands.Dispatch(ctx, command.ProcessPayment{
-		IdempotencyKey: evt.OrderID,
+		IdempotencyKey: evt.IdempotenceKey,
 		CustomerID:     evt.CustomerID,
 		AmountCents:    evt.AmountCents,
 		Currency:       evt.Currency,

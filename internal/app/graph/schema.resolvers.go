@@ -12,6 +12,7 @@ import (
 	"github.com/example/payment-federation/internal/app/graph/generated"
 	"github.com/example/payment-federation/internal/app/graph/model"
 	"github.com/example/payment-federation/internal/payments/application/command"
+	"github.com/example/payment-federation/internal/shared/cqrs"
 )
 
 // ProcessPayment is the resolver for the processPayment field.
@@ -52,16 +53,17 @@ func (r *mutationResolver) RefundPayment(ctx context.Context, input model.Refund
 func (r *mutationResolver) CreateOrder(ctx context.Context, input model.CreateOrderInput) (*model.Order, error) {
 	// Despacha CreateOrder (Watermill, block-until-ack). O handler persiste e
 	// publica OrderCreated, que dispara o pagamento automaticamente (saga).
-	if err := r.Commands.Dispatch(ctx, command.CreateOrder{
+	data, err := cqrs.ExecuteCommandSync[command.CreateOrder, command.CreateOrderResult](ctx, r.Commands, command.CreateOrder{
 		IdempotencyKey: input.IdempotencyKey,
 		CustomerID:     input.CustomerID,
 		AmountCents:    input.AmountCents,
 		Currency:       input.Currency,
-	}); err != nil {
+	})
+	if err != nil {
 		return nil, err
 	}
 	// Read-after-write pelo idempotencyKey (o id do pedido é gerado no use-case).
-	return r.loadOrderByKey(ctx, input.IdempotencyKey)
+	return r.loadOrderByKey(ctx, data.OrderID)
 }
 
 // Customer is the resolver for the customer field. Resolve o cliente do pedido

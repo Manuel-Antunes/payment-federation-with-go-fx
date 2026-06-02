@@ -154,6 +154,16 @@ func IdempotencyKeyHasSuffix(v string) predicate.Order {
 	return predicate.Order(sql.FieldHasSuffix(FieldIdempotencyKey, v))
 }
 
+// IdempotencyKeyIsNil applies the IsNil predicate on the "idempotency_key" field.
+func IdempotencyKeyIsNil() predicate.Order {
+	return predicate.Order(sql.FieldIsNull(FieldIdempotencyKey))
+}
+
+// IdempotencyKeyNotNil applies the NotNil predicate on the "idempotency_key" field.
+func IdempotencyKeyNotNil() predicate.Order {
+	return predicate.Order(sql.FieldNotNull(FieldIdempotencyKey))
+}
+
 // IdempotencyKeyEqualFold applies the EqualFold predicate on the "idempotency_key" field.
 func IdempotencyKeyEqualFold(v string) predicate.Order {
 	return predicate.Order(sql.FieldEqualFold(FieldIdempotencyKey, v))

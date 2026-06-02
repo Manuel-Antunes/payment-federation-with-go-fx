@@ -52,8 +52,6 @@ func ValidColumn(column string) bool {
 }
 
 var (
-	// IdempotencyKeyValidator is a validator for the "idempotency_key" field. It is called by the builders before save.
-	IdempotencyKeyValidator func(string) error
 	// CustomerIDValidator is a validator for the "customer_id" field. It is called by the builders before save.
 	CustomerIDValidator func(string) error
 	// IDValidator is a validator for the "id" field. It is called by the builders before save.

@@ -517,14 +517,7 @@ var sources = []*ast.Source{
 directive @binding(constraint: String!) on INPUT_FIELD_DEFINITION | ARGUMENT_DEFINITION
 `, BuiltIn: false},
 	{Name: "../schema.graphqls", Input: `# Schema GraphQL FEDERADO (Apollo Federation v2 via gqlgen).
-#
-# A diretiva @key torna Payment uma "entity" resolvível por outros subgraphs
-# da federação. O gateway de federação (Apollo Router / Cosmo) consegue
-# montar este subgraph junto a outros (ex.: subgraph de Customer) e resolver
-# Payment.customer remotamente.
 
-extend schema
-  @link(url: "https://specs.apollo.dev/federation/v2.3", import: ["@key"])
 
 type Payment @key(fields: "id") {
   id: ID!
@@ -570,7 +563,7 @@ type Order @key(fields: "id") {
 
 input CreateOrderInput {
   "Chave de idempotência do pedido (mínimo 8 caracteres)."
-  idempotencyKey: String! @binding(constraint: "min=8,max=255")
+  idempotencyKey: String @binding(constraint: "min=8,max=255,required=false")
   "Cliente (id de um usuário existente)."
   customerId: ID! @binding(constraint: "required")
   amountCents: Int! @binding(constraint: "min=1")
@@ -599,7 +592,15 @@ type Subscription {
   """
   onPaymentProcessed(orderId: ID!): Payment!
 }
-`, BuiltIn: false},
+
+#
+# A diretiva @key torna Payment uma "entity" resolvível por outros subgraphs
+# da federação. O gateway de federação (Apollo Router / Cosmo) consegue
+# montar este subgraph junto a outros (ex.: subgraph de Customer) e resolver
+# Payment.customer remotamente.
+
+extend schema
+  @link(url: "https://specs.apollo.dev/federation/v2.3", import: ["@key"])`, BuiltIn: false},
 	{Name: "../user.graphqls", Input: `# Fragmento de schema do bounded context de USUÁRIO. Estende os tipos raiz
 # Query/Mutation (definidos em schema.graphqls) — um único subgraph federado.
 
@@ -3351,16 +3352,16 @@ func (ec *executionContext) unmarshalInputCreateOrderInput(ctx context.Context, 
 		switch k {
 		case "idempotencyKey":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("idempotencyKey"))
-			directive0 := func(ctx context.Context) (any, error) { return ec.unmarshalNString2string(ctx, v) }
+			directive0 := func(ctx context.Context) (any, error) { return ec.unmarshalOString2ᚖstring(ctx, v) }
 
 			directive1 := func(ctx context.Context) (any, error) {
-				constraint, err := ec.unmarshalNString2string(ctx, "min=8,max=255")
+				constraint, err := ec.unmarshalNString2string(ctx, "min=8,max=255,required=false")
 				if err != nil {
-					var zeroVal string
+					var zeroVal *string
 					return zeroVal, err
 				}
 				if ec.Directives.Binding == nil {
-					var zeroVal string
+					var zeroVal *string
 					return zeroVal, errors.New("directive binding is not implemented")
 				}
 				return ec.Directives.Binding(ctx, obj, directive0, constraint)
@@ -3370,10 +3371,12 @@ func (ec *executionContext) unmarshalInputCreateOrderInput(ctx context.Context, 
 			if err != nil {
 				return it, graphql.ErrorOnPath(ctx, err)
 			}
-			if data, ok := tmp.(string); ok {
+			if data, ok := tmp.(*string); ok {
 				it.IdempotencyKey = data
+			} else if tmp == nil {
+				it.IdempotencyKey = nil
 			} else {
-				err := fmt.Errorf(`unexpected type %T from directive, should be string`, tmp)
+				err := fmt.Errorf(`unexpected type %T from directive, should be *string`, tmp)
 				return it, graphql.ErrorOnPath(ctx, err)
 			}
 		case "customerId":

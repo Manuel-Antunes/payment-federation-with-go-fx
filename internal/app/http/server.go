@@ -1,76 +1,89 @@
-// Package http monta o handler HTTP da aplicação com a biblioteca padrão
-// (net/http). Foi escolhido net/http em vez do adaptador do Fiber porque o
-// transporte WebSocket do gqlgen (subscriptions) precisa de http.Hijacker — que
-// o adaptador fasthttp não expõe.
+// Package http monta o servidor HTTP da aplicação com o Fiber (fasthttp).
+//
+// As queries/mutations GraphQL e o Playground são servidos pelo handler do
+// gqlgen, adaptado para o fasthttp (adaptor.HTTPHandler). As SUBSCRIPTIONS usam
+// um handler graphql-transport-ws PRÓPRIO sobre o WebSocket do Fiber
+// (gofiber/contrib/websocket), dirigindo o executor do gqlgen — porque o
+// transporte WS embutido do gqlgen depende de http.Hijacker (net/http), que o
+// fasthttp não expõe. Ver graphql_ws.go.
 package http
 
 import (
-	"encoding/json"
-	"net/http"
-
+	"github.com/99designs/gqlgen/graphql/executor"
 	"github.com/99designs/gqlgen/graphql/handler"
 	"github.com/99designs/gqlgen/graphql/playground"
+	"github.com/gofiber/contrib/websocket"
+	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/adaptor"
+	"go.uber.org/zap"
 
 	"github.com/example/payment-federation/internal/app/graph"
 	"github.com/example/payment-federation/internal/app/graph/dataloader"
 	"github.com/example/payment-federation/internal/payments/infrastructure/gateway"
+	"github.com/example/payment-federation/internal/shared/cqrs"
 )
 
-// NewHandler monta o http.Handler do servidor e mapeia:
-//   - POST/GET/WS /query   : GraphQL (queries, mutations e SUBSCRIPTIONS via WS)
+// NewFiberApp monta o *fiber.App e mapeia:
+//   - POST /query          : GraphQL (queries, mutations)
+//   - GET  /query (upgrade): SUBSCRIPTIONS via WebSocket (graphql-transport-ws)
 //   - GET  /               : GraphQL Playground (com suporte a subscriptions)
-//   - GET  /admin/gateway  : lista gateways e o ativo
-//   - POST /admin/gateway  : troca o gateway ativo EM RUNTIME
+//   - GET/POST /admin/gateway : lista / troca o gateway ativo em runtime
 //
-// O handler GraphQL é envolvido pelo middleware de DataLoaders, que injeta um
-// conjunto fresco de loaders por requisição (batch + cache por-request).
-func NewHandler(resolver *graph.Resolver, loaders dataloader.Middleware, registry *gateway.Registry) http.Handler {
-	// NewDefaultServer já inclui o transporte WebSocket (subscriptions).
+// O handler HTTP do GraphQL é envolvido pelo middleware de DataLoaders (um
+// conjunto fresco por requisição) e adaptado para o fasthttp.
+func NewFiberApp(
+	resolver *graph.Resolver,
+	loaders dataloader.Middleware,
+	registry *gateway.Registry,
+	queries *cqrs.QueryBus,
+	log *zap.Logger,
+) *fiber.App {
 	es := graph.NewExecutableSchema(resolver)
-	gql := handler.NewDefaultServer(es)
+	gql := handler.NewDefaultServer(es) // queries/mutations (o transporte WS dele não é usado)
+	exec := executor.New(es)            // executor dirigido pelo handler WS próprio
 
-	mux := http.NewServeMux()
-	// O Playground aponta para /query; o GraphQL Playground usa o mesmo endpoint
-	// em ws:// para as subscriptions.
-	mux.Handle("/query", loaders(gql))
-	mux.Handle("/", playground.Handler("Payment Federation", "/query"))
-	registerAdmin(mux, registry)
-	return mux
-}
+	// Handler HTTP do GraphQL (com loaders) adaptado para o fasthttp.
+	httpGQL := adaptor.HTTPHandler(loaders(gql))
 
-func registerAdmin(mux *http.ServeMux, registry *gateway.Registry) {
-	mux.HandleFunc("/admin/gateway", func(w http.ResponseWriter, r *http.Request) {
-		switch r.Method {
-		case http.MethodGet:
-			var active string
-			if g := registry.Active(); g != nil {
-				active = g.Name()
-			}
-			writeJSON(w, http.StatusOK, map[string]any{"active": active, "available": registry.Available()})
+	app := fiber.New(fiber.Config{DisableStartupMessage: true})
 
-		case http.MethodPost:
-			// Troca o provedor padrão sem reiniciar o serviço.
-			var body struct {
-				Name string `json:"name"`
-			}
-			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-				writeJSON(w, http.StatusBadRequest, map[string]any{"error": err.Error()})
-				return
-			}
-			if err := registry.SetActive(body.Name); err != nil {
-				writeJSON(w, http.StatusBadRequest, map[string]any{"error": err.Error()})
-				return
-			}
-			writeJSON(w, http.StatusOK, map[string]any{"active": body.Name})
-
-		default:
-			w.WriteHeader(http.StatusMethodNotAllowed)
+	// /query: se for upgrade WebSocket -> handler de subscriptions; senão -> HTTP.
+	app.Use("/query", func(c *fiber.Ctx) error {
+		if websocket.IsWebSocketUpgrade(c) {
+			return c.Next()
 		}
+		return httpGQL(c)
 	})
+	app.Get("/query", websocket.New(
+		newGraphQLWSHandler(exec, queries, log),
+		websocket.Config{Subprotocols: []string{"graphql-transport-ws"}},
+	))
+
+	app.Get("/", adaptor.HTTPHandler(playground.Handler("Payment Federation", "/query")))
+	registerAdmin(app, registry)
+	return app
 }
 
-func writeJSON(w http.ResponseWriter, status int, v any) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(v)
+func registerAdmin(app *fiber.App, registry *gateway.Registry) {
+	app.Get("/admin/gateway", func(c *fiber.Ctx) error {
+		var active string
+		if g := registry.Active(); g != nil {
+			active = g.Name()
+		}
+		return c.JSON(fiber.Map{"active": active, "available": registry.Available()})
+	})
+
+	app.Post("/admin/gateway", func(c *fiber.Ctx) error {
+		// Troca o provedor padrão sem reiniciar o serviço.
+		var body struct {
+			Name string `json:"name"`
+		}
+		if err := c.BodyParser(&body); err != nil {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
+		}
+		if err := registry.SetActive(body.Name); err != nil {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
+		}
+		return c.JSON(fiber.Map{"active": body.Name})
+	})
 }

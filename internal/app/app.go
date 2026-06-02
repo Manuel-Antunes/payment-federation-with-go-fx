@@ -39,7 +39,7 @@ var Module = fx.Options(
 		graph.NewResolver,
 		graph.NewPaymentHub,
 		dataloader.NewMiddleware,
-		httpiface.NewHandler,
+		httpiface.NewFiberApp,
 	),
 
 	// Conecta o canal do EventBus (Watermill Subscriber) ao hub da subscription

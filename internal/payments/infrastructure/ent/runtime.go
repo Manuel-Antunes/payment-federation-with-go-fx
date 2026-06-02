@@ -14,10 +14,6 @@ import (
 func init() {
 	orderFields := schema.Order{}.Fields()
 	_ = orderFields
-	// orderDescIdempotencyKey is the schema descriptor for idempotency_key field.
-	orderDescIdempotencyKey := orderFields[1].Descriptor()
-	// order.IdempotencyKeyValidator is a validator for the "idempotency_key" field. It is called by the builders before save.
-	order.IdempotencyKeyValidator = orderDescIdempotencyKey.Validators[0].(func(string) error)
 	// orderDescCustomerID is the schema descriptor for customer_id field.
 	orderDescCustomerID := orderFields[2].Descriptor()
 	// order.CustomerIDValidator is a validator for the "customer_id" field. It is called by the builders before save.

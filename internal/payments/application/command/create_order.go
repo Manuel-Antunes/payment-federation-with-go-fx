@@ -14,7 +14,7 @@ import (
 
 // CreateOrder é o command de criação de pedido. Exige um cliente (CustomerID).
 type CreateOrder struct {
-	IdempotencyKey string
+	IdempotencyKey *string
 	CustomerID     string
 	AmountCents    int64
 	Currency       string
@@ -46,10 +46,15 @@ func NewCreateOrderHandler(
 }
 
 func (h *CreateOrderHandler) Handle(ctx context.Context, cmd CreateOrder) (CreateOrderResult, error) {
-	key, err := payment.NewIdempotencyKey(cmd.IdempotencyKey)
-	if err != nil {
-		return CreateOrderResult{}, err
+	var idempotencyKey *payment.IdempotencyKey
+	if cmd.IdempotencyKey != nil {
+		key, err := payment.NewIdempotencyKey(*cmd.IdempotencyKey)
+		if err != nil {
+			return CreateOrderResult{}, err
+		}
+		idempotencyKey = &key
 	}
+
 	cur, err := payment.NewCurrency(cmd.Currency)
 	if err != nil {
 		return CreateOrderResult{}, err
@@ -71,7 +76,7 @@ func (h *CreateOrderHandler) Handle(ctx context.Context, cmd CreateOrder) (Creat
 		return CreateOrderResult{}, order.ErrCustomerUnknown
 	}
 
-	o, err := order.NewOrder(h.ids.NewID(), key, cmd.CustomerID, amount, h.clock.Now)
+	o, err := order.NewOrder(h.ids.NewID(), idempotencyKey, cmd.CustomerID, amount, h.clock.Now)
 	if err != nil {
 		return CreateOrderResult{}, err
 	}

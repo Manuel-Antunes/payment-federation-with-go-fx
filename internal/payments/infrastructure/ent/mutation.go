@@ -171,7 +171,7 @@ func (m *OrderMutation) IdempotencyKey() (r string, exists bool) {
 // OldIdempotencyKey returns the old "idempotency_key" field's value of the Order entity.
 // If the Order object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *OrderMutation) OldIdempotencyKey(ctx context.Context) (v string, err error) {
+func (m *OrderMutation) OldIdempotencyKey(ctx context.Context) (v *string, err error) {
 	if !m.op.Is(OpUpdateOne) {
 		return v, errors.New("OldIdempotencyKey is only allowed on UpdateOne operations")
 	}
@@ -185,9 +185,22 @@ func (m *OrderMutation) OldIdempotencyKey(ctx context.Context) (v string, err er
 	return oldValue.IdempotencyKey, nil
 }
 
+// ClearIdempotencyKey clears the value of the "idempotency_key" field.
+func (m *OrderMutation) ClearIdempotencyKey() {
+	m.idempotency_key = nil
+	m.clearedFields[order.FieldIdempotencyKey] = struct{}{}
+}
+
+// IdempotencyKeyCleared returns if the "idempotency_key" field was cleared in this mutation.
+func (m *OrderMutation) IdempotencyKeyCleared() bool {
+	_, ok := m.clearedFields[order.FieldIdempotencyKey]
+	return ok
+}
+
 // ResetIdempotencyKey resets all changes to the "idempotency_key" field.
 func (m *OrderMutation) ResetIdempotencyKey() {
 	m.idempotency_key = nil
+	delete(m.clearedFields, order.FieldIdempotencyKey)
 }
 
 // SetCustomerID sets the "customer_id" field.
@@ -661,7 +674,11 @@ func (m *OrderMutation) AddField(name string, value ent.Value) error {
 // ClearedFields returns all nullable fields that were cleared during this
 // mutation.
 func (m *OrderMutation) ClearedFields() []string {
-	return nil
+	var fields []string
+	if m.FieldCleared(order.FieldIdempotencyKey) {
+		fields = append(fields, order.FieldIdempotencyKey)
+	}
+	return fields
 }
 
 // FieldCleared returns a boolean indicating if a field with the given name was
@@ -674,6 +691,11 @@ func (m *OrderMutation) FieldCleared(name string) bool {
 // ClearField clears the value of the field with the given name. It returns an
 // error if the field is not defined in the schema.
 func (m *OrderMutation) ClearField(name string) error {
+	switch name {
+	case order.FieldIdempotencyKey:
+		m.ClearIdempotencyKey()
+		return nil
+	}
 	return fmt.Errorf("unknown Order nullable field %s", name)
 }
 
