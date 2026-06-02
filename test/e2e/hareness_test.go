@@ -103,11 +103,10 @@ func (e *e2e) serveWS() string {
 		time.Sleep(5 * time.Millisecond)
 	}
 
-	e.t.Cleanup(func() {
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-		_ = e.app.ShutdownWithContext(ctx)
-	})
+	// Fecha só o listener (encerra o Serve). NÃO usamos app.ShutdownWithContext:
+	// ele escreve no estado do fasthttp.Server concorrentemente com RequestCtx
+	// ainda vivos das requisições em memória (app.Test) -> data race no shutdown.
+	e.t.Cleanup(func() { _ = ln.Close() })
 	return base
 }
 

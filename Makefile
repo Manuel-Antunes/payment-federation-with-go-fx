@@ -6,11 +6,14 @@ AIR_VERSION ?= v1.65.3
 tidy: generate
 	go mod tidy
 
-# Gera o código: ent (por módulo) e depois gqlgen.
+# Gera o código: ent (por módulo), gqlgen e, por fim, os DataLoaders.
+# Ordem importa: o dataloaden carrega o pacote `model` (gerado pelo gqlgen),
+# então roda DEPOIS do gqlgen.
 generate:
 	GOFLAGS=-mod=mod go mod download
 	GOFLAGS=-mod=mod go generate ./internal/user/infrastructure/ent/ ./internal/payments/infrastructure/ent/
 	GOFLAGS=-mod=mod go run github.com/99designs/gqlgen generate
+	GOFLAGS=-mod=mod go generate ./internal/app/graph/dataloader/
 
 # Sobe/derruba o Postgres local (docker compose).
 db-up:
