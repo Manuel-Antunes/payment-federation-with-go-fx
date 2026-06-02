@@ -1,46 +1,33 @@
 package payment
 
-import "time"
+import "github.com/example/payment-federation/internal/shared/domain"
 
-// DomainEvent é o contrato de eventos emitidos pelo agregado. A aplicação pode
-// publicá-los (outbox, broker) DEPOIS de persistir — nunca antes.
-type DomainEvent interface {
-	EventName() string
-	OccurredAt() time.Time
-	AggregateID() PaymentID
-}
-
-type baseEvent struct {
-	id  PaymentID
-	at  time.Time
-}
-
-func (e baseEvent) OccurredAt() time.Time   { return e.at }
-func (e baseEvent) AggregateID() PaymentID  { return e.id }
+// Os eventos de pagamento embutem domain.BaseEvent[PaymentID] (id + instante) e
+// só declaram EventName + seus campos próprios. Satisfazem domain.DomainEvent.
 
 type PaymentInitiated struct {
-	baseEvent
+	domain.BaseEvent[PaymentID]
 	Amount Money
 }
 
 func (PaymentInitiated) EventName() string { return "payment.initiated" }
 
 type PaymentAuthorized struct {
-	baseEvent
+	domain.BaseEvent[PaymentID]
 	GatewayRef GatewayReference
 }
 
 func (PaymentAuthorized) EventName() string { return "payment.authorized" }
 
 type PaymentCaptured struct {
-	baseEvent
+	domain.BaseEvent[PaymentID]
 	Amount Money
 }
 
 func (PaymentCaptured) EventName() string { return "payment.captured" }
 
 type PaymentRefunded struct {
-	baseEvent
+	domain.BaseEvent[PaymentID]
 	Amount  Money
 	Partial bool
 }
@@ -48,7 +35,7 @@ type PaymentRefunded struct {
 func (PaymentRefunded) EventName() string { return "payment.refunded" }
 
 type PaymentFailed struct {
-	baseEvent
+	domain.BaseEvent[PaymentID]
 	Reason string
 }
 

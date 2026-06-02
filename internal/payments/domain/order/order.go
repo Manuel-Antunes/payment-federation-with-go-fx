@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/example/payment-federation/internal/payments/domain/payment"
+	"github.com/example/payment-federation/internal/shared/domain"
 )
 
 // Clock é injetável para testes determinísticos.
@@ -23,7 +24,8 @@ type Order struct {
 	createdAt      time.Time
 	version        int
 
-	events []DomainEvent
+	// AggregateRoot fornece Record/PullEvents (composição da base de domínio).
+	domain.AggregateRoot[domain.DomainEvent]
 }
 
 // NewOrder é a fábrica do agregado. Exige um cliente e um valor válido, e emite
@@ -48,8 +50,8 @@ func NewOrder(id OrderID, key payment.IdempotencyKey, customerID string, amount 
 		createdAt:      t,
 		version:        1,
 	}
-	o.record(OrderCreated{
-		baseEvent:   baseEvent{id: id, at: t},
+	o.Apply(OrderCreated{
+		BaseEvent:   domain.NewBaseEvent(id, t),
 		CustomerID:  customerID,
 		AmountCents: amount.AmountCents(),
 		Currency:    string(amount.Currency()),
@@ -57,24 +59,17 @@ func NewOrder(id OrderID, key payment.IdempotencyKey, customerID string, amount 
 	return o, nil
 }
 
-func (o *Order) record(e DomainEvent) { o.events = append(o.events, e) }
-
-// PullEvents devolve e limpa os eventos pendentes (após persistir com sucesso).
-func (o *Order) PullEvents() []DomainEvent {
-	out := o.events
-	o.events = nil
-	return out
-}
+// Record/PullEvents vêm da composição com domain.AggregateRoot.
 
 // ---- Getters --------------------------------------------------------------
 
-func (o *Order) ID() OrderID                          { return o.id }
+func (o *Order) ID() OrderID                            { return o.id }
 func (o *Order) IdempotencyKey() payment.IdempotencyKey { return o.idempotencyKey }
-func (o *Order) CustomerID() string                   { return o.customerID }
-func (o *Order) Amount() payment.Money                { return o.amount }
-func (o *Order) Status() Status                       { return o.status }
-func (o *Order) CreatedAt() time.Time                 { return o.createdAt }
-func (o *Order) Version() int                         { return o.version }
+func (o *Order) CustomerID() string                     { return o.customerID }
+func (o *Order) Amount() payment.Money                  { return o.amount }
+func (o *Order) Status() Status                         { return o.status }
+func (o *Order) CreatedAt() time.Time                   { return o.createdAt }
+func (o *Order) Version() int                           { return o.version }
 
 // ---- Snapshot (persistência) ----------------------------------------------
 

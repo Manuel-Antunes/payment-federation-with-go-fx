@@ -1,6 +1,10 @@
 package payment
 
-import "time"
+import (
+	"time"
+
+	"github.com/example/payment-federation/internal/shared/domain"
+)
 
 // ---------------------------------------------------------------------------
 // Aggregate Root: Payment
@@ -24,7 +28,8 @@ type Payment struct {
 	updatedAt      time.Time
 	version        int // controle de concorrência otimista
 
-	events []DomainEvent
+	// AggregateRoot fornece Record/PullEvents (composição da base de domínio).
+	domain.AggregateRoot[domain.DomainEvent]
 }
 
 // Clock é injetável para testes determinísticos.
@@ -54,7 +59,7 @@ func NewPayment(id PaymentID, key IdempotencyKey, customerID string, amount Mone
 		updatedAt:      t,
 		version:        1,
 	}
-	p.record(PaymentInitiated{baseEvent: baseEvent{id: id, at: t}, Amount: amount})
+	p.Apply(PaymentInitiated{BaseEvent: domain.NewBaseEvent(id, t), Amount: amount})
 	return p, nil
 }
 
@@ -73,7 +78,7 @@ func (p *Payment) Authorize(ref GatewayReference, now Clock) error {
 	t := now()
 	p.gatewayRef = ref
 	p.transition(StatusAuthorized, t)
-	p.record(PaymentAuthorized{baseEvent: baseEvent{id: p.id, at: t}, GatewayRef: ref})
+	p.Apply(PaymentAuthorized{BaseEvent: domain.NewBaseEvent(p.id, t), GatewayRef: ref})
 	return nil
 }
 
@@ -90,7 +95,7 @@ func (p *Payment) Capture(now Clock) error {
 	}
 	t := now()
 	p.transition(StatusCaptured, t)
-	p.record(PaymentCaptured{baseEvent: baseEvent{id: p.id, at: t}, Amount: p.amount})
+	p.Apply(PaymentCaptured{BaseEvent: domain.NewBaseEvent(p.id, t), Amount: p.amount})
 	return nil
 }
 
@@ -119,7 +124,7 @@ func (p *Payment) Refund(amount Money, now Clock) error {
 		return ErrInvalidTransition
 	}
 	p.transition(next, t)
-	p.record(PaymentRefunded{baseEvent: baseEvent{id: p.id, at: t}, Amount: amount, Partial: partial})
+	p.Apply(PaymentRefunded{BaseEvent: domain.NewBaseEvent(p.id, t), Amount: amount, Partial: partial})
 	return nil
 }
 
@@ -130,7 +135,7 @@ func (p *Payment) Fail(reason string, now Clock) error {
 	}
 	t := now()
 	p.transition(StatusFailed, t)
-	p.record(PaymentFailed{baseEvent: baseEvent{id: p.id, at: t}, Reason: reason})
+	p.Apply(PaymentFailed{BaseEvent: domain.NewBaseEvent(p.id, t), Reason: reason})
 	return nil
 }
 
@@ -140,28 +145,20 @@ func (p *Payment) transition(next Status, t time.Time) {
 	p.version++
 }
 
-func (p *Payment) record(e DomainEvent) { p.events = append(p.events, e) }
-
-// PullEvents devolve e limpa os eventos pendentes (chamado pela aplicação
-// após persistir com sucesso).
-func (p *Payment) PullEvents() []DomainEvent {
-	out := p.events
-	p.events = nil
-	return out
-}
+// Record/PullEvents vêm da composição com domain.AggregateRoot.
 
 // ---- Getters (read-only) ---------------------------------------------------
 
-func (p *Payment) ID() PaymentID                { return p.id }
+func (p *Payment) ID() PaymentID                  { return p.id }
 func (p *Payment) IdempotencyKey() IdempotencyKey { return p.idempotencyKey }
-func (p *Payment) CustomerID() string           { return p.customerID }
-func (p *Payment) Amount() Money                 { return p.amount }
-func (p *Payment) Refunded() Money               { return p.refunded }
-func (p *Payment) Status() Status                { return p.status }
-func (p *Payment) GatewayRef() GatewayReference  { return p.gatewayRef }
-func (p *Payment) CreatedAt() time.Time          { return p.createdAt }
-func (p *Payment) UpdatedAt() time.Time          { return p.updatedAt }
-func (p *Payment) Version() int                  { return p.version }
+func (p *Payment) CustomerID() string             { return p.customerID }
+func (p *Payment) Amount() Money                  { return p.amount }
+func (p *Payment) Refunded() Money                { return p.refunded }
+func (p *Payment) Status() Status                 { return p.status }
+func (p *Payment) GatewayRef() GatewayReference   { return p.gatewayRef }
+func (p *Payment) CreatedAt() time.Time           { return p.createdAt }
+func (p *Payment) UpdatedAt() time.Time           { return p.updatedAt }
+func (p *Payment) Version() int                   { return p.version }
 
 // ---- Reconstrução a partir da persistência (hidratação) --------------------
 

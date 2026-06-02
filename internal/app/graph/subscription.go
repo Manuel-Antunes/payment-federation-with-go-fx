@@ -55,6 +55,13 @@ func (h *PaymentHub) Subscribe(ctx context.Context, orderID string) <-chan *mode
 	return ch
 }
 
+// NumSubscribers devolve o número de assinantes ativos (observabilidade/testes).
+func (h *PaymentHub) NumSubscribers() int {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	return len(h.subs)
+}
+
 // Publish entrega o pagamento aos assinantes cujo orderId casa com a chave
 // (não-bloqueante).
 func (h *PaymentHub) Publish(orderID string, p *model.Payment) {

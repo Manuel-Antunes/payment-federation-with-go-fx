@@ -43,6 +43,10 @@ var Module = fx.Module("shared",
 		cqrs.NewCommandBus,
 		cqrs.NewEventBus,
 		cqrs.NewQueryBus,
+
+		// Publisher GENÉRICO de eventos de domínio (lado de publicação do
+		// EventBus do Watermill) — usado por todos os módulos via For/Commit.
+		cqrs.NewEventPublisher,
 	),
 
 	// Sobe/desce o router no lifecycle do fx (após os módulos registrarem seus

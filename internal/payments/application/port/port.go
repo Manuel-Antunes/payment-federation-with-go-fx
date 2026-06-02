@@ -21,18 +21,6 @@ type OrderIDGenerator interface {
 	NewID() order.OrderID
 }
 
-// EventPublisher publica eventos de domínio de PAGAMENTO após persistência.
-// Recebe o agregado para que o evento de integração carregue o snapshot do
-// pagamento (consumidores reagem sem reconsultar o banco).
-type EventPublisher interface {
-	Publish(ctx context.Context, p *payment.Payment, events ...payment.DomainEvent) error
-}
-
-// OrderEventPublisher publica eventos de domínio de PEDIDO após persistência.
-type OrderEventPublisher interface {
-	Publish(ctx context.Context, events ...order.DomainEvent) error
-}
-
 // CustomerDirectory valida que um pedido referencia um cliente existente, sem
 // acoplar o módulo de pagamentos ao de usuário (a impl é um bridge na composição).
 type CustomerDirectory interface {

@@ -3,7 +3,11 @@
 // já está válido.
 package user
 
-import "time"
+import (
+	"time"
+
+	"github.com/example/payment-federation/internal/shared/domain"
+)
 
 // Clock é injetável para testes determinísticos.
 type Clock func() time.Time
@@ -17,6 +21,9 @@ type User struct {
 	createdAt time.Time
 	updatedAt time.Time
 	version   int
+
+	// AggregateRoot fornece Record/PullEvents (composição da base de domínio).
+	domain.AggregateRoot[domain.DomainEvent]
 }
 
 // NewUser é a fábrica do agregado. Recebe um id já gerado (a porta de
@@ -26,14 +33,20 @@ func NewUser(id UserID, name Name, email Email, now Clock) (*User, error) {
 		return nil, ErrNotFound
 	}
 	t := now()
-	return &User{
+	u := &User{
 		id:        id,
 		name:      name,
 		email:     email,
 		createdAt: t,
 		updatedAt: t,
 		version:   1,
-	}, nil
+	}
+	u.Apply(UserCreated{
+		BaseEvent: domain.NewBaseEvent(id, t),
+		Name:      name.String(),
+		Email:     email.String(),
+	})
+	return u, nil
 }
 
 // Rename altera o nome de exibição.

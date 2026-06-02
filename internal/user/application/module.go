@@ -25,7 +25,8 @@ var Module = fx.Module("user/application",
 		query.NewExistsHandler,
 	),
 
-	// Registro de commands e queries.
+	// Registro de commands, queries e events (projeção de usuário).
 	fx.Invoke(bus.RegisterCommands),
 	fx.Invoke(bus.RegisterQueries),
+	fx.Invoke(bus.RegisterEvents),
 )

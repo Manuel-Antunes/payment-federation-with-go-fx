@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/example/payment-federation/internal/payments/domain/payment"
+	"github.com/example/payment-federation/internal/shared/domain"
 )
 
 // PaymentIntegrationEvent é o evento de integração de pagamento. Além do nome do
@@ -29,7 +30,7 @@ type PaymentIntegrationEvent struct {
 
 // PaymentIntegrationFrom traduz um evento de domínio para o DTO, anexando o
 // snapshot do agregado (estado já persistido no momento da publicação).
-func PaymentIntegrationFrom(p *payment.Payment, e payment.DomainEvent) PaymentIntegrationEvent {
+func PaymentIntegrationFrom(p *payment.Payment, e domain.DomainEvent) PaymentIntegrationEvent {
 	return PaymentIntegrationEvent{
 		Name:           e.EventName(),
 		PaymentID:      p.ID().String(),

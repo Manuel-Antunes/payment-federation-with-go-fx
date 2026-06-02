@@ -1,8 +1,8 @@
-package http_test
+package e2e
 
-// Utilitários de teste e2e: sobe uma instância isolada do app (Fiber + gqlgen +
-// fx) por teste, ligada a um banco Postgres próprio (criado/migrado/dropado pelo
-// harness), e expõe helpers de transporte GraphQL/HTTP + fixtures.
+// Utilitários de teste e2e: sobe uma instância isolada do app (net/http + gqlgen
+// + fx) por teste, ligada a um banco Postgres próprio (criado/migrado/dropado
+// pelo harness), e expõe helpers de transporte GraphQL/HTTP + fixtures.
 
 import (
 	"bytes"
@@ -17,7 +17,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gofiber/fiber/v2"
 	"go.uber.org/fx"
 	"go.uber.org/fx/fxevent"
 	"go.uber.org/zap"
@@ -26,13 +25,9 @@ import (
 	"github.com/example/payment-federation/internal/app/graph"
 )
 
-// testTimeoutMS limita cada request (em ms) para que um deadlock falhe o teste
-// em vez de travar.
-const testTimeoutMS = 10_000
-
 type e2e struct {
 	t        *testing.T
-	app      *fiber.App
+	handler  http.Handler
 	resolver *graph.Resolver // exposto p/ testar subscriptions sem websocket
 }
 
@@ -52,14 +47,14 @@ func newE2E(t *testing.T) *e2e {
 		t.Fatalf("open db %s: %v", dbName, err)
 	}
 
-	var fiberApp *fiber.App
+	var handler http.Handler
 	var resolver *graph.Resolver
 	fxApp := fx.New(
 		fx.Provide(func() *zap.Logger { return zap.NewNop() }),
 		fx.WithLogger(func() fxevent.Logger { return fxevent.NopLogger }),
 		fx.Supply(db), // injeta o *sql.DB do teste; os clients ent migram no Start
 		app.Module,
-		fx.Populate(&fiberApp, &resolver),
+		fx.Populate(&handler, &resolver),
 	)
 
 	startCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -78,7 +73,7 @@ func newE2E(t *testing.T) *e2e {
 		dropDatabase(dbName)
 	})
 
-	return &e2e{t: t, app: fiberApp, resolver: resolver}
+	return &e2e{t: t, handler: handler, resolver: resolver}
 }
 
 // --- transporte GraphQL / HTTP ----------------------------------------------
@@ -117,10 +112,9 @@ func (e *e2e) query(operation string, variables map[string]any) gqlResponse {
 	req := httptest.NewRequest(http.MethodPost, "/query", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 
-	resp, err := e.app.Test(req, testTimeoutMS)
-	if err != nil {
-		e.t.Fatalf("request: %v", err)
-	}
+	rec := httptest.NewRecorder()
+	e.handler.ServeHTTP(rec, req)
+	resp := rec.Result()
 	defer resp.Body.Close()
 
 	raw, err := io.ReadAll(resp.Body)
@@ -174,10 +168,9 @@ func (e *e2e) httpJSON(method, path, body string) (int, string) {
 	if body != "" {
 		req.Header.Set("Content-Type", "application/json")
 	}
-	resp, err := e.app.Test(req, testTimeoutMS)
-	if err != nil {
-		e.t.Fatalf("request %s %s: %v", method, path, err)
-	}
+	rec := httptest.NewRecorder()
+	e.handler.ServeHTTP(rec, req)
+	resp := rec.Result()
 	defer resp.Body.Close()
 	raw, _ := io.ReadAll(resp.Body)
 	return resp.StatusCode, string(raw)

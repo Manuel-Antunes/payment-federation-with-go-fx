@@ -24,13 +24,13 @@ test:
 	go test ./internal/payments/domain/... ./internal/user/domain/...
 
 # Testes end-to-end (sobem o app via fx + Postgres via testcontainers; requerem
-# Docker e `make generate`).
+# Docker e `make generate`). Vivem em ./test/e2e.
 e2e: generate
-	GOFLAGS=-mod=mod go test -race ./internal/app/...
+	GOFLAGS=-mod=mod go test -race ./test/e2e/...
 
 # Tudo: domínio + e2e (requer código gerado + Docker).
 test-all: generate
-	GOFLAGS=-mod=mod go test -race ./internal/...
+	GOFLAGS=-mod=mod go test -race ./internal/... ./test/...
 
 # Sobe o servidor (requer `make generate` antes, na primeira vez)
 run:

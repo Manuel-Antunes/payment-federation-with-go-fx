@@ -3,9 +3,11 @@ package command
 import (
 	"context"
 
-	"github.com/example/payment-federation/internal/payments/application/port"
-	"github.com/example/payment-federation/internal/shared/clock"
+	"github.com/example/payment-federation/internal/payments/application/event"
 	"github.com/example/payment-federation/internal/payments/domain/payment"
+	"github.com/example/payment-federation/internal/shared/clock"
+	"github.com/example/payment-federation/internal/shared/cqrs"
+	"github.com/example/payment-federation/internal/shared/domain"
 )
 
 // RefundPayment é o command de reembolso (total ou parcial).
@@ -21,19 +23,19 @@ type RefundPaymentResult struct {
 }
 
 type RefundPaymentHandler struct {
-	repo      payment.Repository
-	gateways  payment.GatewayProvider
-	clock     clock.Clock
-	publisher port.EventPublisher
+	repo     payment.Repository
+	gateways payment.GatewayProvider
+	clock    clock.Clock
+	events   cqrs.EventPublisher
 }
 
 func NewRefundPaymentHandler(
 	repo payment.Repository,
 	gateways payment.GatewayProvider,
 	clock clock.Clock,
-	publisher port.EventPublisher,
+	events cqrs.EventPublisher,
 ) *RefundPaymentHandler {
-	return &RefundPaymentHandler{repo: repo, gateways: gateways, clock: clock, publisher: publisher}
+	return &RefundPaymentHandler{repo: repo, gateways: gateways, clock: clock, events: events}
 }
 
 func (h *RefundPaymentHandler) Handle(ctx context.Context, cmd RefundPayment) (RefundPaymentResult, error) {
@@ -69,9 +71,9 @@ func (h *RefundPaymentHandler) Handle(ctx context.Context, cmd RefundPayment) (R
 		return RefundPaymentResult{}, err
 	}
 
-	if h.publisher != nil {
-		_ = h.publisher.Publish(ctx, p, p.PullEvents()...)
-	}
+	_ = h.events.For(p).Commit(ctx, func(e domain.DomainEvent) (any, bool) {
+		return event.PaymentIntegrationFrom(p, e), true
+	})
 
 	return RefundPaymentResult{
 		PaymentID:     p.ID().String(),

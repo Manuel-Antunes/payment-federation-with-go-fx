@@ -23,5 +23,5 @@ func newCustomerDirectory(queries *cqrs.QueryBus) *customerDirectory {
 }
 
 func (d *customerDirectory) Exists(ctx context.Context, customerID string) (bool, error) {
-	return cqrs.Ask[uquery.Exists, bool](ctx, d.queries, uquery.Exists{UserID: customerID})
+	return cqrs.ExecuteQuery[uquery.Exists, bool](ctx, d.queries, uquery.Exists{UserID: customerID})
 }

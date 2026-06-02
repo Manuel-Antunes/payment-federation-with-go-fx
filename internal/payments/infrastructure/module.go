@@ -15,7 +15,6 @@ import (
 	"github.com/example/payment-federation/internal/payments/infrastructure/adapters"
 	entx "github.com/example/payment-federation/internal/payments/infrastructure/ent"
 	"github.com/example/payment-federation/internal/payments/infrastructure/gateway"
-	"github.com/example/payment-federation/internal/payments/infrastructure/messaging"
 	"github.com/example/payment-federation/internal/payments/infrastructure/persistence"
 )
 
@@ -45,15 +44,9 @@ var Module = fx.Module("payments/infrastructure",
 		func() port.IDGenerator { return adapters.UUIDGenerator{} },
 		func() port.OrderIDGenerator { return adapters.OrderUUIDGenerator{} },
 
-		// EventPublishers (portas) <- Watermill (EventBus).
-		fx.Annotate(
-			messaging.NewWatermillPublisher,
-			fx.As(new(port.EventPublisher)),
-		),
-		fx.Annotate(
-			messaging.NewWatermillOrderPublisher,
-			fx.As(new(port.OrderEventPublisher)),
-		),
+		// A publicação de eventos de domínio agora é genérica
+		// (cqrs.EventPublisher, provido pelo módulo shared): os command handlers
+		// usam For(agg).Commit(mapper). Não há mais publisher específico aqui.
 	),
 	fx.Invoke(migrate),
 )

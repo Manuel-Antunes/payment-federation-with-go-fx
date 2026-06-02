@@ -4,9 +4,12 @@ import (
 	"context"
 	"errors"
 
+	"github.com/example/payment-federation/internal/payments/application/event"
 	"github.com/example/payment-federation/internal/payments/application/port"
-	"github.com/example/payment-federation/internal/shared/clock"
 	"github.com/example/payment-federation/internal/payments/domain/payment"
+	"github.com/example/payment-federation/internal/shared/clock"
+	"github.com/example/payment-federation/internal/shared/cqrs"
+	"github.com/example/payment-federation/internal/shared/domain"
 )
 
 // ProcessPayment é o COMMAND (lado de escrita do CQRS): cria, autoriza e
@@ -32,11 +35,11 @@ type ProcessPaymentResult struct {
 // negócio roda no agregado em memória; a PERSISTÊNCIA acontece só no final,
 // depois que todas as invariantes foram aplicadas.
 type ProcessPaymentHandler struct {
-	repo      payment.Repository
-	gateways  payment.GatewayProvider
-	ids       port.IDGenerator
-	clock     clock.Clock
-	publisher port.EventPublisher
+	repo     payment.Repository
+	gateways payment.GatewayProvider
+	ids      port.IDGenerator
+	clock    clock.Clock
+	events   cqrs.EventPublisher
 }
 
 func NewProcessPaymentHandler(
@@ -44,9 +47,9 @@ func NewProcessPaymentHandler(
 	gateways payment.GatewayProvider,
 	ids port.IDGenerator,
 	clock clock.Clock,
-	publisher port.EventPublisher,
+	events cqrs.EventPublisher,
 ) *ProcessPaymentHandler {
-	return &ProcessPaymentHandler{repo: repo, gateways: gateways, ids: ids, clock: clock, publisher: publisher}
+	return &ProcessPaymentHandler{repo: repo, gateways: gateways, ids: ids, clock: clock, events: events}
 }
 
 func (h *ProcessPaymentHandler) Handle(ctx context.Context, cmd ProcessPayment) (ProcessPaymentResult, error) {
@@ -124,10 +127,10 @@ func (h *ProcessPaymentHandler) Handle(ctx context.Context, cmd ProcessPayment) 
 		return ProcessPaymentResult{}, err
 	}
 
-	// 7) Publica eventos após persistir.
-	if h.publisher != nil {
-		_ = h.publisher.Publish(ctx, p, p.PullEvents()...)
-	}
+	// 7) Publica eventos após persistir — o mapper anexa o snapshot do agregado.
+	_ = h.events.For(p).Commit(ctx, func(e domain.DomainEvent) (any, bool) {
+		return event.PaymentIntegrationFrom(p, e), true
+	})
 
 	return ProcessPaymentResult{PaymentID: p.ID().String(), Status: string(p.Status())}, nil
 }

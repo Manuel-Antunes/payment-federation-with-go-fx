@@ -5,12 +5,9 @@
 package event
 
 import (
-	"context"
 	"time"
 
-	"github.com/example/payment-federation/internal/payments/application/command"
 	"github.com/example/payment-federation/internal/payments/domain/order"
-	"github.com/example/payment-federation/internal/shared/cqrs"
 )
 
 // OrderIntegrationEvent é o evento de integração de pedido. Carrega o que a
@@ -28,27 +25,10 @@ type OrderIntegrationEvent struct {
 func OrderIntegrationFrom(e order.OrderCreated) OrderIntegrationEvent {
 	return OrderIntegrationEvent{
 		Name:        e.EventName(),
-		OrderID:     e.AggregateID().String(),
+		OrderID:     e.AggregateID(),
 		CustomerID:  e.CustomerID,
 		AmountCents: e.AmountCents,
 		Currency:    e.Currency,
 		OccurredAt:  e.OccurredAt().UTC(),
 	}
-}
-
-type OrderIntegrationEventHandler struct {
-	commands *cqrs.CommandBus
-}
-
-func NewOrderIntegrationEventHandler(commands *cqrs.CommandBus) *OrderIntegrationEventHandler {
-	return &OrderIntegrationEventHandler{commands: commands}
-}
-
-func (h *OrderIntegrationEventHandler) Handle(ctx context.Context, evt *OrderIntegrationEvent) error {
-	return h.commands.Dispatch(ctx, command.ProcessPayment{
-		IdempotencyKey: evt.OrderID,
-		CustomerID:     evt.CustomerID,
-		AmountCents:    evt.AmountCents,
-		Currency:       evt.Currency,
-	})
 }

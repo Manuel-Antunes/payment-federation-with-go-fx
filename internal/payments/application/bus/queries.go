@@ -5,11 +5,7 @@
 package bus
 
 import (
-	"context"
-
 	"github.com/example/payment-federation/internal/payments/application/query"
-	"github.com/example/payment-federation/internal/payments/domain/order"
-	"github.com/example/payment-federation/internal/payments/domain/payment"
 	"github.com/example/payment-federation/internal/shared/cqrs"
 )
 
@@ -23,27 +19,17 @@ func RegisterQueries(
 	getOrderByKey *query.GetOrderByKeyHandler,
 	getOrdersByIDs *query.GetOrdersByIDsHandler,
 ) error {
-	if err := cqrs.RegisterQuery(qb, func(ctx context.Context, q query.GetPayment) (*payment.Payment, error) {
-		return getPayment.Handle(ctx, q)
-	}); err != nil {
+	if err := cqrs.RegisterQuery(qb, getPayment); err != nil {
 		return err
 	}
-	if err := cqrs.RegisterQuery(qb, func(ctx context.Context, q query.GetPaymentByKey) (*payment.Payment, error) {
-		return getPaymentByKey.Handle(ctx, q)
-	}); err != nil {
+	if err := cqrs.RegisterQuery(qb, getPaymentByKey); err != nil {
 		return err
 	}
-	if err := cqrs.RegisterQuery(qb, func(ctx context.Context, q query.GetOrder) (*order.Order, error) {
-		return getOrder.Handle(ctx, q)
-	}); err != nil {
+	if err := cqrs.RegisterQuery(qb, getOrder); err != nil {
 		return err
 	}
-	if err := cqrs.RegisterQuery(qb, func(ctx context.Context, q query.GetOrdersByIDs) ([]*order.Order, error) {
-		return getOrdersByIDs.Handle(ctx, q)
-	}); err != nil {
+	if err := cqrs.RegisterQuery(qb, getOrdersByIDs); err != nil {
 		return err
 	}
-	return cqrs.RegisterQuery(qb, func(ctx context.Context, q query.GetOrderByKey) (*order.Order, error) {
-		return getOrderByKey.Handle(ctx, q)
-	})
+	return cqrs.RegisterQuery(qb, getOrderByKey)
 }

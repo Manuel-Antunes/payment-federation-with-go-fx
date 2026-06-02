@@ -22,6 +22,8 @@ import (
 	"github.com/ThreeDotsLabs/watermill/pubsub/gochannel"
 	"go.uber.org/fx"
 	"go.uber.org/zap"
+
+	appcqrs "github.com/example/payment-federation/internal/shared/cqrs"
 )
 
 // Marshaler (de)serializa commands e events. O tópico é derivado do nome do
@@ -51,6 +53,9 @@ func NewPubSub(logger watermill.LoggerAdapter) *gochannel.GoChannel {
 //     travaria o Send; aqui logamos o erro e seguimos. Centraliza a política
 //     para que os handlers possam devolver erros normalmente.
 //   - Recoverer: converte panics em erros (capturados então pelo ackOnError).
+//   - correlationToContext: promove o id de correlação da metadata para o
+//     context que o handler recebe (viabiliza o request-reply síncrono do
+//     CommandBus — ver cqrs.ExecuteMutationSync).
 func NewRouter(logger watermill.LoggerAdapter) (*message.Router, error) {
 	router, err := message.NewRouter(message.RouterConfig{}, logger)
 	if err != nil {
@@ -58,7 +63,21 @@ func NewRouter(logger watermill.LoggerAdapter) (*message.Router, error) {
 	}
 	router.AddMiddleware(ackOnError(logger))
 	router.AddMiddleware(middleware.Recoverer)
+	router.AddMiddleware(correlationToContext)
 	return router, nil
+}
+
+// correlationToContext lê o id de correlação da metadata e o injeta no context
+// da mensagem, de onde o CommandBus o recupera para responder ao chamador do
+// ExecuteMutationSync. Sem id na metadata (ex.: Dispatch fire-and-forget), é
+// um no-op.
+func correlationToContext(h message.HandlerFunc) message.HandlerFunc {
+	return func(msg *message.Message) ([]*message.Message, error) {
+		if id := msg.Metadata.Get(appcqrs.CorrelationMetadataKey()); id != "" {
+			msg.SetContext(appcqrs.ContextWithCorrelation(msg.Context(), id))
+		}
+		return h(msg)
+	}
 }
 
 // ackOnError loga o erro do handler e faz Ack (devolve nil), evitando o loop de

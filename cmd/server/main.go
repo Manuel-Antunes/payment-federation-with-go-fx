@@ -2,10 +2,11 @@ package main
 
 import (
 	"context"
+	"net"
+	"net/http"
 	"os"
 	"strings"
 
-	"github.com/gofiber/fiber/v2"
 	"github.com/joho/godotenv"
 	"go.uber.org/fx"
 	"go.uber.org/fx/fxevent"
@@ -68,21 +69,27 @@ func newLogger() (*zap.Logger, error) {
 	return cfg.Build()
 }
 
-func registerHTTPServer(lc fx.Lifecycle, appHTTP *fiber.App, log *zap.Logger) {
+func registerHTTPServer(lc fx.Lifecycle, h http.Handler, log *zap.Logger) {
 	const addr = ":8080"
+	srv := &http.Server{Addr: addr, Handler: h}
 	lc.Append(fx.Hook{
 		OnStart: func(ctx context.Context) error {
+			// Escuta no OnStart para falhar rápido em erro de bind.
+			ln, err := net.Listen("tcp", addr)
+			if err != nil {
+				return err
+			}
 			go func() {
 				log.Info("HTTP up", zap.String("addr", addr), zap.String("playground", "http://localhost:8080/"))
-				if err := appHTTP.Listen(addr); err != nil {
-					log.Error("listen", zap.Error(err))
+				if err := srv.Serve(ln); err != nil && err != http.ErrServerClosed {
+					log.Error("serve", zap.Error(err))
 				}
 			}()
 			return nil
 		},
 		OnStop: func(ctx context.Context) error {
 			log.Info("HTTP shutting down")
-			return appHTTP.ShutdownWithContext(ctx)
+			return srv.Shutdown(ctx)
 		},
 	})
 }

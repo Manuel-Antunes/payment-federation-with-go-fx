@@ -1,6 +1,6 @@
 # payment-federation
 
-Exemplo de serviço de **processamento de pagamentos idempotente** em Go, modelado com **DDD + CQRS**, injeção de dependências com **Uber FX**, HTTP com **Fiber** e GraphQL **federado** (Apollo Federation v2) gerado por **gqlgen**.
+Exemplo de serviço de **processamento de pagamentos idempotente** em Go, modelado com **DDD + CQRS**, injeção de dependências com **Uber FX**, HTTP com **net/http** e GraphQL **federado** (Apollo Federation v2, com **subscriptions** via WebSocket) gerado por **gqlgen**.
 
 Dois princípios guiam a arquitetura:
 
@@ -50,7 +50,7 @@ internal/
 │   └── module.go                   #   payments.Module
 ├── interfaces/                     # INTERFACE única (um subgraph federado)
 │   ├── graph/                      #   schema (payment+order+user), resolvers, model (gqlgen)
-│   └── http/                       #   servidor Fiber (/query, playground, /admin/gateway)
+│   └── http/                       #   servidor net/http (/query + WS, playground, /admin/gateway)
 └── app/                            # COMPOSIÇÃO: app.Module + bridges cross-module
     ├── app.go                      #   une shared+user+payments+interfaces
     └── bridges.go                  #   customerDirectory (payments↔user via QueryBus)
@@ -107,11 +107,11 @@ cancelado. Assim a subscription não toca o read model — os dados vêm no even
 subscription { onPaymentProcessed(orderId: "ord_...") { id status amountCents } }
 ```
 
-> Transporte: o handler gqlgen (`NewDefaultServer`) já inclui o transporte
-> WebSocket. Como o `/query` é servido via adaptador fasthttp do Fiber (que não
-> faz *hijack* de conexão), o WebSocket não sobe por esse caminho — para expor a
-> subscription na rede, sirva o handler gqlgen num listener `net/http`. A lógica
-> (evento → hub → canal) é coberta por testes e2e (`subscription_test.go`).
+> Transporte: o `/query` é servido por **net/http**, então o transporte WebSocket
+> do gqlgen (`NewDefaultServer`) funciona — o **GraphQL Playground** em `/` faz a
+> subscription via `ws://.../query` direto. Há testes e2e cobrindo tanto a lógica
+> (`subscription_test.go`) quanto o transporte WebSocket real, falando
+> `graphql-transport-ws` (`ws_subscription_test.go`).
 
 ### Validação na borda (diretiva `@binding`)
 
@@ -205,7 +205,7 @@ internal/payments/infrastructure/ent/    # client ent de payments (tabelas payme
 
 ### Testes e2e com Postgres real (testcontainers)
 
-Os testes end-to-end ([internal/app/http/e2e_test.go](internal/app/http/e2e_test.go))
+Os testes end-to-end ([test/e2e/](test/e2e/), pacote `e2e`)
 sobem **um** container Postgres por suíte ([testcontainers](https://golang.testcontainers.org/)),
 abrindo uma conexão admin uma única vez. Para **cada teste**: cria um banco novo,
 migra (no `Start` do fx) e, ao final, **dropa** o banco — isolamento total sem

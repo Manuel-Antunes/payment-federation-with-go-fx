@@ -19,7 +19,7 @@ import (
 // ---- Payment --------------------------------------------------------------
 
 func (r *Resolver) load(ctx context.Context, id string) (*model.Payment, error) {
-	p, err := cqrs.Ask[pquery.GetPayment, *payment.Payment](ctx, r.Queries, pquery.GetPayment{PaymentID: id})
+	p, err := cqrs.ExecuteQuery[pquery.GetPayment, *payment.Payment](ctx, r.Queries, pquery.GetPayment{PaymentID: id})
 	if err != nil {
 		return nil, err
 	}
@@ -28,7 +28,7 @@ func (r *Resolver) load(ctx context.Context, id string) (*model.Payment, error) 
 
 // loadByKey relê pelo idempotencyKey (o id do pagamento é gerado no use-case).
 func (r *Resolver) loadByKey(ctx context.Context, idempotencyKey string) (*model.Payment, error) {
-	p, err := cqrs.Ask[pquery.GetPaymentByKey, *payment.Payment](ctx, r.Queries, pquery.GetPaymentByKey{IdempotencyKey: idempotencyKey})
+	p, err := cqrs.ExecuteQuery[pquery.GetPaymentByKey, *payment.Payment](ctx, r.Queries, pquery.GetPaymentByKey{IdempotencyKey: idempotencyKey})
 	if err != nil {
 		return nil, err
 	}
@@ -58,7 +58,7 @@ func toGraphPayment(p *payment.Payment) *model.Payment {
 
 // loadOrderByKey relê o pedido pela chave de idempotência (read-after-write).
 func (r *Resolver) loadOrderByKey(ctx context.Context, idempotencyKey string) (*model.Order, error) {
-	o, err := cqrs.Ask[pquery.GetOrderByKey, *order.Order](ctx, r.Queries, pquery.GetOrderByKey{IdempotencyKey: idempotencyKey})
+	o, err := cqrs.ExecuteQuery[pquery.GetOrderByKey, *order.Order](ctx, r.Queries, pquery.GetOrderByKey{IdempotencyKey: idempotencyKey})
 	if err != nil {
 		return nil, err
 	}
@@ -78,7 +78,7 @@ func toGraphOrder(o *order.Order) *model.Order {
 // ---- User -----------------------------------------------------------------
 
 func (r *Resolver) loadUser(ctx context.Context, id string) (*model.User, error) {
-	u, err := cqrs.Ask[uquery.GetUser, *user.User](ctx, r.Queries, uquery.GetUser{UserID: id})
+	u, err := cqrs.ExecuteQuery[uquery.GetUser, *user.User](ctx, r.Queries, uquery.GetUser{UserID: id})
 	if err != nil {
 		return nil, err
 	}
@@ -87,7 +87,7 @@ func (r *Resolver) loadUser(ctx context.Context, id string) (*model.User, error)
 
 // loadUserByEmail relê o usuário pelo e-mail (read-after-write de createUser).
 func (r *Resolver) loadUserByEmail(ctx context.Context, email string) (*model.User, error) {
-	u, err := cqrs.Ask[uquery.GetUserByEmail, *user.User](ctx, r.Queries, uquery.GetUserByEmail{Email: email})
+	u, err := cqrs.ExecuteQuery[uquery.GetUserByEmail, *user.User](ctx, r.Queries, uquery.GetUserByEmail{Email: email})
 	if err != nil {
 		return nil, err
 	}
@@ -95,7 +95,7 @@ func (r *Resolver) loadUserByEmail(ctx context.Context, email string) (*model.Us
 }
 
 func (r *Resolver) listUsers(ctx context.Context) ([]*model.User, error) {
-	users, err := cqrs.Ask[uquery.ListUsers, []*user.User](ctx, r.Queries, uquery.ListUsers{})
+	users, err := cqrs.ExecuteQuery[uquery.ListUsers, []*user.User](ctx, r.Queries, uquery.ListUsers{})
 	if err != nil {
 		return nil, err
 	}

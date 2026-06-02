@@ -65,7 +65,7 @@ func fetchUsers(queries *cqrs.QueryBus) func(ids []string) ([]*model.User, []err
 		users := make([]*model.User, len(ids))
 		errs := make([]error, len(ids))
 
-		found, err := cqrs.Ask[uquery.GetUsersByIDs, []*user.User](
+		found, err := cqrs.ExecuteQuery[uquery.GetUsersByIDs, []*user.User](
 			context.Background(), queries, uquery.GetUsersByIDs{IDs: ids},
 		)
 		if err != nil {
@@ -97,7 +97,7 @@ func fetchOrders(queries *cqrs.QueryBus) func(ids []string) ([]*model.Order, []e
 		orders := make([]*model.Order, len(ids))
 		errs := make([]error, len(ids))
 
-		found, err := cqrs.Ask[pquery.GetOrdersByIDs, []*order.Order](
+		found, err := cqrs.ExecuteQuery[pquery.GetOrdersByIDs, []*order.Order](
 			context.Background(), queries, pquery.GetOrdersByIDs{IDs: ids},
 		)
 		if err != nil {

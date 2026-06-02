@@ -1,4 +1,4 @@
-package http_test
+package e2e
 
 // Bootstrap da suíte e2e: UM container Postgres (testcontainers) por suíte, com
 // uma conexão admin aberta UMA vez. Os bancos de cada teste são criados/dropados
